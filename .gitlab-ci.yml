@@ -74,25 +74,6 @@ build-frontend:
 # -----------------------------------------------------------------------------
 # 3. DEPLOY STAGE
 # -----------------------------------------------------------------------------
-deploy-backend:
-  stage: deploy
-  needs: ["build-backend"]
-  dependencies:
-    - build-backend
-  script:
-    - Write-Host "Deploying Backend Lambdas & Infrastructure via Terraform..."
-    - $env:PATH="C:\Users\Lakshana\AppData\Local\Microsoft\WinGet\Packages\Hashicorp.Terraform_Microsoft.Winget.Source_8wekyb3d8bbwe;" + $env:PATH
-    - if (Test-Path "C:/Users/Lakshana/.aws/credentials") { $env:AWS_SHARED_CREDENTIALS_FILE="C:/Users/Lakshana/.aws/credentials"; $env:AWS_CONFIG_FILE="C:/Users/Lakshana/.aws/config" }
-    - $env:AWS_DEFAULT_REGION="us-east-1"
-    - cd infrastructure
-    - terraform init
-    - terraform apply -auto-approve
-  rules:
-    - changes:
-        - backend/**/*
-        - infrastructure/**/*
-        - .gitlab-ci.yml
-
 deploy-frontend:
   stage: deploy
   needs: ["build-frontend"]
