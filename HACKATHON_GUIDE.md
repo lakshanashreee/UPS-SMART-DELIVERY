@@ -3,6 +3,28 @@
 
 ---
 
+## 🏗️ QUICK ARCHITECTURE & API REFERENCE FOR JUDGES
+
+### ❓ 1. What Architecture Are We Using?
+We are using an **Event-Driven Serverless Cloud Microservices Architecture**:
+- **Frontend**: React 18 + TypeScript SPA hosted on **AWS S3 Static Website Hosting**.
+- **Backend Compute**: **AWS Lambda Functions (Python 3.11)** (Zero server management, auto-scaling).
+- **Database**: **Amazon DynamoDB** (Serverless NoSQL key-value store).
+- **Telemetry Ingestion**: **AWS IoT Core** (Lightweight MQTT protocol for RFID scanners & GPS dongles).
+- **Real-Time Push**: **AWS AppSync GraphQL WebSockets** (Instant updates without browser polling).
+- **Authentication**: **AWS Cognito User Pool** (Role-Based Access Control - RBAC).
+- **Infrastructure as Code**: **Terraform** (100% reproducible AWS setup).
+
+---
+
+### ❓ 2. What API Are We Using? HTTP API or REST API?
+We use **AWS API Gateway HTTP API v2 (RESTful JSON Specification)**:
+- **Protocol**: RESTful HTTP/2 JSON API (`protocol_type = "HTTP"` in `infrastructure/apigateway.tf`).
+- **Why AWS HTTP API over traditional REST API?**: AWS API Gateway HTTP APIs are the modern, lightweight, low-latency successor to legacy AWS REST APIs. They deliver **60% lower latency** and process RESTful JSON requests (`POST /admin/simulate-event`, `GET /shipments`) at a fraction of the cost.
+- **WebSocket Extension**: In addition to REST HTTP APIs, we use **AWS AppSync WebSockets** (`wss://...`) to stream real-time location updates directly to the browser.
+
+---
+
 ## 📌 1. EXECUTIVE SUMMARY & PROBLEM STATEMENT
 
 ### 🔴 The Problem in Modern Logistics
@@ -55,13 +77,14 @@ Every library and framework in our codebase was hand-picked for maximum performa
 ### ☁️ AWS Cloud Serverless Infrastructure
 | AWS Service | Infrastructure Role | Why We Selected It & Why It Is Better |
 | :--- | :--- | :--- |
+| **AWS API Gateway** | HTTP API v2 (RESTful) | Handles RESTful JSON requests (`POST /admin/simulate-event`, `GET /shipments`) with 60% lower latency than legacy REST APIs. |
 | **AWS IoT Core** | MQTT Message Broker | Listens to topic `logistics/events`. Handles QoS 1 MQTT event streams from thousands of warehouse RFID scanners and truck GPS dongles across India. |
 | **AWS Lambda** | Python 3.11 Compute | Serverless compute executing Dijkstra route recalculation and risk scoring. Auto-scales from 0 to 10,000 requests per second with $0 idle cost. |
 | **Amazon DynamoDB** | Cloud Data Storage | Fully managed NoSQL key-value database (`logistics_shipments`, `logistics_events`). Guarantees single-digit millisecond latency at any throughput. |
 | **AWS AppSync** | GraphQL WebSockets | Managed WebSocket service pushing real-time location and reroute updates to frontend clients without polling. |
 | **AWS Cognito** | Admin Authentication | User Pool (`us-east-1_fwxt8QkLP`) enforcing strict Admin credential authentication (`admin@logistics.com` / `UPSAdmin#2026`). |
 | **AWS S3** | Static Website Hosting | Global high-availability static web bucket (`logistics-control-tower-dev-frontend-597289949963`). |
-| **Terraform** | Infrastructure as Code (IaC) | Declarative configuration files (`cognito.tf`, `dynamodb.tf`, `lambda.tf`, `appsync.tf`) enabling 100% reproducible deployments in minutes. |
+| **Terraform** | Infrastructure as Code (IaC) | Declarative configuration files (`apigateway.tf`, `cognito.tf`, `dynamodb.tf`, `lambda.tf`, `appsync.tf`) enabling 100% reproducible deployments in minutes. |
 
 ---
 
