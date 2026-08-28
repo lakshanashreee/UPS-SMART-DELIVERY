@@ -46,7 +46,7 @@ build-backend:
     - Write-Host "Validating Backend Python Modules..."
     - $env:PATH="C:\Users\Lakshana\AppData\Local\Programs\Python\Python313;C:\Users\Lakshana\AppData\Local\Programs\Python\Launcher;" + $env:PATH
     - $env:PYTHONPATH="."
-    - python -m py_compile backend/routing/dijkstra.py backend/routing/risk_engine.py
+    - python -m py_compile backend/routing/dijkstra.py backend/lambdas/event_processor/handler.py
   rules:
     - changes:
         - backend/**/*
