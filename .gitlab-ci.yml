@@ -8,8 +8,7 @@ stages:
   - deploy
 
 # -----------------------------------------------------------------------------
-# 1. Backend Unit Tests
-# Only runs when files in backend/ or .gitlab-ci.yml change
+# 1. TEST STAGE
 # -----------------------------------------------------------------------------
 test-backend:
   stage: test
@@ -22,12 +21,35 @@ test-backend:
         - backend/**/*
         - .gitlab-ci.yml
 
+test-frontend:
+  stage: test
+  script:
+    - Write-Host "Running Frontend TypeScript Type Checking..."
+    - cd frontend
+    - cmd /c "npx tsc --noEmit"
+  rules:
+    - changes:
+        - frontend/**/*
+        - .gitlab-ci.yml
+
 # -----------------------------------------------------------------------------
-# 2. Frontend Production Build
-# Only runs when files in frontend/ or .gitlab-ci.yml change
+# 2. BUILD STAGE
 # -----------------------------------------------------------------------------
+build-backend:
+  stage: build
+  needs: ["test-backend"]
+  script:
+    - Write-Host "Building & Validating Backend Python Modules..."
+    - cd backend
+    - python -m py_compile routing/dijkstra.py routing/risk_engine.py
+  rules:
+    - changes:
+        - backend/**/*
+        - .gitlab-ci.yml
+
 build-frontend:
   stage: build
+  needs: ["test-frontend"]
   script:
     - Write-Host "Building React Production Distribution Bundle..."
     - cd frontend
@@ -43,10 +65,22 @@ build-frontend:
         - .gitlab-ci.yml
 
 # -----------------------------------------------------------------------------
-# 3. Frontend S3 & Cloud Hosting Deploy
-# Syncs built dist/ to live AWS S3 hosting bucket
-# Only runs when frontend/ or .gitlab-ci.yml changes
+# 3. DEPLOY STAGE
 # -----------------------------------------------------------------------------
+deploy-backend:
+  stage: deploy
+  needs: ["build-backend"]
+  script:
+    - Write-Host "Deploying Backend Lambdas & Infrastructure via Terraform..."
+    - cd infrastructure
+    - terraform init
+    - terraform apply -auto-approve
+  rules:
+    - changes:
+        - backend/**/*
+        - infrastructure/**/*
+        - .gitlab-ci.yml
+
 deploy-frontend:
   stage: deploy
   needs: ["build-frontend"]
@@ -57,18 +91,3 @@ deploy-frontend:
     - changes:
         - frontend/**/*
         - .gitlab-ci.yml
-
-# -----------------------------------------------------------------------------
-# 4. Infrastructure Terraform Deploy
-# Only runs when files in infrastructure/ change
-# -----------------------------------------------------------------------------
-deploy-infrastructure:
-  stage: deploy
-  script:
-    - Write-Host "Applying Terraform Infrastructure Updates..."
-    - cd infrastructure
-    - terraform init
-    - terraform apply -auto-approve
-  rules:
-    - changes:
-        - infrastructure/**/*
