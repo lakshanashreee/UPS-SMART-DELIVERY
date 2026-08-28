@@ -6,7 +6,8 @@ import {
   Cpu, 
   ShieldCheck,
   LogOut,
-  User
+  User,
+  Truck
 } from 'lucide-react';
 import type { ActivePage } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -31,8 +32,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
       <div>
         {/* Brand Header */}
         <div className="p-4 bg-[#351C15] border-b border-[#4D291F] flex items-center gap-3">
-          <div className="w-10 h-11 bg-[#FFB500] rounded-b-lg flex items-center justify-center font-black text-lg text-[#351C15] shadow-md border border-[#351C15]">
-            UPS
+          <div className="w-10 h-10 bg-[#FFB500] rounded-xl flex items-center justify-center text-[#351C15] shadow-md border border-[#351C15]">
+            <Truck className="w-6 h-6" />
           </div>
           <div>
             <h1 className="font-extrabold text-white tracking-tight text-sm leading-tight">
@@ -72,7 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
             <User className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-slate-800 truncate">{user?.username || 'admin@ups.com'}</p>
+            <p className="text-xs font-bold text-slate-800 truncate">{user?.username || 'admin@logistics.com'}</p>
             <span className="text-[10px] font-bold px-1.5 py-0.2 bg-amber-100 text-amber-900 rounded border border-amber-300 inline-block">
               {user?.role || 'ADMIN'}
             </span>

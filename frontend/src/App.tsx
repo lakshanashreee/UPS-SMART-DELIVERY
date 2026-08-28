@@ -25,7 +25,7 @@ const MainAppContent: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* UPS Sidebar */}
+      {/* Sidebar */}
       <Sidebar activePage={activePage} onNavigate={setActivePage} />
 
       {/* Main Content Area */}
@@ -34,7 +34,7 @@ const MainAppContent: React.FC = () => {
         <header className="h-16 border-b border-slate-200 bg-white px-6 flex items-center justify-between sticky top-0 z-20 shadow-xs">
           <div className="flex items-center gap-3">
             <span className="text-xs font-bold px-2.5 py-1 bg-amber-100 text-amber-900 rounded-md border border-amber-300">
-              UPS Control Tower MVP
+              Logistics Control Tower MVP
             </span>
             <span className="text-xs text-slate-500 font-medium hidden sm:inline">
               Smart Delivery & Realtime Delay Tracker

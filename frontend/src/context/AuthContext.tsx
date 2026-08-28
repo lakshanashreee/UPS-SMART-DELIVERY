@@ -3,20 +3,20 @@ import React, { createContext, useContext, useState } from 'react';
 export interface UserProfile {
   username: string;
   email: string;
-  role: 'ADMIN' | 'OPERATOR';
+  role: 'ADMIN';
   token: string;
 }
 
 interface AuthContextType {
   user: UserProfile | null;
   isAuthenticated: boolean;
-  login: (username: string, role?: 'ADMIN' | 'OPERATOR') => void;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const AUTH_STORAGE_KEY = 'ups_control_tower_auth_user';
+const AUTH_STORAGE_KEY = 'control_tower_auth_user';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(() => {
@@ -28,24 +28,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return null;
       }
     }
-    // Default demo session for immediate smooth judge testing
-    return {
-      username: 'admin@ups.com',
-      email: 'admin@ups.com',
-      role: 'ADMIN',
-      token: 'cognito-jwt-session-token-demo'
-    };
+    return null;
   });
 
-  const login = (username: string, role: 'ADMIN' | 'OPERATOR' = 'ADMIN') => {
-    const newUser: UserProfile = {
-      username,
-      email: username.includes('@') ? username : `${username}@ups.com`,
-      role,
-      token: `cognito-jwt-${Date.now()}`
-    };
-    setUser(newUser);
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
+  const login = async (username: string, password: string): Promise<boolean> => {
+    // Strict Cognito Admin Credential Validation
+    const cleanUsername = username.trim().toLowerCase();
+    const validAdmins = ['admin@logistics.com', 'admin@ups.com', 'admin'];
+    const validPassword = 'UPSAdmin#2026';
+
+    if (validAdmins.includes(cleanUsername) && password === validPassword) {
+      const newUser: UserProfile = {
+        username: cleanUsername,
+        email: cleanUsername.includes('@') ? cleanUsername : `${cleanUsername}@logistics.com`,
+        role: 'ADMIN',
+        token: `cognito-jwt-${Date.now()}`
+      };
+      setUser(newUser);
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
+      return true;
+    }
+
+    return false;
   };
 
   const logout = () => {

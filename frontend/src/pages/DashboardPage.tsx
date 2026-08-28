@@ -53,7 +53,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             Control Tower Dashboard
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Realtime UPS shipment monitoring across Indian logistics hubs
+            Realtime shipment monitoring across Indian logistics hubs
           </p>
         </div>
 
