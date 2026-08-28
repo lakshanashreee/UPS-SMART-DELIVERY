@@ -12,7 +12,8 @@ import {
   Package,
   Layers,
   Globe,
-  Wind
+  Wind,
+  Check
 } from 'lucide-react';
 import type { Shipment } from '../types';
 import { appsyncRealtime, type RealtimeShipmentPayload } from '../utils/appsyncRealtime';
@@ -64,13 +65,11 @@ export const LiveMapPage: React.FC = () => {
   const [rerouteResult, setRerouteResult] = useState<{ path: string[]; timeSaved: number; summary: string } | null>(null);
   const [lastRealtimeEvent, setLastRealtimeEvent] = useState<RealtimeShipmentPayload | null>(null);
   
-  // Real open-source API telematics state
   const [liveTraffic, setLiveTraffic] = useState<Record<string, LiveCityTelematics>>({});
   const [isFetchingTraffic, setIsFetchingTraffic] = useState<boolean>(false);
 
   const activeSelected = selectedShipment || (shipments && shipments.length > 0 ? shipments[0] : null);
 
-  // Auto-fetch real-time telematics from Open-Meteo API on mount
   useEffect(() => {
     handleFetchLiveTraffic();
 
@@ -103,8 +102,12 @@ export const LiveMapPage: React.FC = () => {
     setIsFetchingTraffic(false);
   };
 
-  // Logically Accurate Dynamic Route Rerouting per Package
+  // Only AT_RISK or DELAYED shipments require rerouting
+  const canReroute = activeSelected?.status === 'AT_RISK' || activeSelected?.status === 'DELAYED';
+
   const handleOptimizeRoute = async (shipment: Shipment) => {
+    if (!canReroute) return;
+
     setRerouting(true);
     setRerouteResult(null);
 
@@ -116,32 +119,14 @@ export const LiveMapPage: React.FC = () => {
       switch (shipment.id) {
         case 'SHP-9001': // Delhi -> Kolkata
           newPath = ['Delhi', 'Jaipur', 'Visakhapatnam', 'Kolkata'];
-          summary = `Bypassed NH19 direct highway storm bottleneck. Diverted via Jaipur → Visakhapatnam corridor. Saved 180 minutes!`;
+          summary = `Bypassed NH19 highway storm bottleneck. Diverted via Jaipur → Visakhapatnam corridor. Saved 180 minutes!`;
           timeSaved = 180;
           break;
 
         case 'SHP-1004': // Hyderabad -> Kolkata
           newPath = ['Hyderabad', 'Visakhapatnam', 'Kolkata'];
-          summary = `Bypassed NH16 central highway flooding. Diverted through Visakhapatnam coastal bypass. Saved 100 minutes!`;
+          summary = `Bypassed NH16 highway flooding. Diverted through Visakhapatnam coastal bypass. Saved 100 minutes!`;
           timeSaved = 100;
-          break;
-
-        case 'SHP-1003': // Bengaluru -> Chennai
-          newPath = ['Bengaluru', 'Chennai'];
-          summary = `Direct Golden Quadrilateral Express route confirmed clear. Maximum speed!`;
-          timeSaved = 20;
-          break;
-
-        case 'SHP-1002': // Mumbai -> Delhi
-          newPath = ['Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'];
-          summary = `Optimal route confirmed via Western Expressway corridor. 0 delay penalty!`;
-          timeSaved = 30;
-          break;
-
-        case 'SHP-1005': // Pune -> Delhi
-          newPath = ['Pune', 'Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'];
-          summary = `Optimal trade route confirmed via NH48. Maximum velocity!`;
-          timeSaved = 25;
           break;
 
         default: // SHIP-001 Chennai -> Mumbai
@@ -570,24 +555,31 @@ export const LiveMapPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Rerouting Trigger */}
-              <button
-                onClick={() => handleOptimizeRoute(activeSelected)}
-                disabled={rerouting}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#FFB500] hover:bg-[#e6a300] text-[#351C15] font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer border border-[#D97706] disabled:opacity-50"
-              >
-                {rerouting ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Finding Faster Route...</span>
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-4 h-4" />
-                    <span>Find Faster Alternative Route</span>
-                  </>
-                )}
-              </button>
+              {/* Rerouting Trigger Button (ONLY ENABLED FOR AT_RISK or DELAYED PACKAGES) */}
+              {canReroute ? (
+                <button
+                  onClick={() => handleOptimizeRoute(activeSelected)}
+                  disabled={rerouting}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#FFB500] hover:bg-[#e6a300] text-[#351C15] font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer border border-[#D97706] disabled:opacity-50"
+                >
+                  {rerouting ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Finding Faster Route...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4" />
+                      <span>Find Faster Alternative Route</span>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-800 font-bold flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>✓ Route Already Optimal (Package is moving on schedule with 0 delay penalty)</span>
+                </div>
+              )}
 
               {rerouteResult && (
                 <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl space-y-2 text-xs">
