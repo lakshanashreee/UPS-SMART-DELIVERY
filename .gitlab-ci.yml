@@ -14,8 +14,7 @@ test-backend:
   stage: test
   script:
     - Write-Host "Running Backend Python Routing Unit Tests..."
-    - cd backend
-    - python -m unittest discover -s routing -p "test_*.py"
+    - python -m unittest discover -s backend/routing -p "test_*.py"
   rules:
     - changes:
         - backend/**/*
@@ -26,7 +25,8 @@ test-frontend:
   script:
     - Write-Host "Running Frontend TypeScript Type Checking..."
     - cd frontend
-    - cmd /c "npx tsc --noEmit"
+    - cmd /c "npm install"
+    - cmd /c "npx tsc -b"
   rules:
     - changes:
         - frontend/**/*
@@ -39,9 +39,8 @@ build-backend:
   stage: build
   needs: ["test-backend"]
   script:
-    - Write-Host "Building & Validating Backend Python Modules..."
-    - cd backend
-    - python -m py_compile routing/dijkstra.py routing/risk_engine.py
+    - Write-Host "Validating Backend Python Modules..."
+    - python -m py_compile backend/routing/dijkstra.py backend/routing/risk_engine.py
   rules:
     - changes:
         - backend/**/*
@@ -85,7 +84,7 @@ deploy-frontend:
   stage: deploy
   needs: ["build-frontend"]
   script:
-    - Write-Host "Deploying Frontend Assets to AWS S3 Website Bucket..."
+    - Write-Host "Deploying Frontend Assets to Live S3 Website Bucket..."
     - aws s3 sync frontend/dist s3://logistics-control-tower-dev-frontend-597289949963 --delete
   rules:
     - changes:
