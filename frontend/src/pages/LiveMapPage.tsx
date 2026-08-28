@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db';
+import { db, resetDemoDataToDefault } from '../db';
 import { 
   MapPin,
   RefreshCw,
@@ -13,7 +13,8 @@ import {
   Layers,
   Globe,
   Wind,
-  Check
+  Check,
+  RotateCcw
 } from 'lucide-react';
 import type { Shipment } from '../types';
 import { appsyncRealtime, type RealtimeShipmentPayload } from '../utils/appsyncRealtime';
@@ -102,6 +103,12 @@ export const LiveMapPage: React.FC = () => {
     setIsFetchingTraffic(false);
   };
 
+  const handleResetDemo = async () => {
+    await resetDemoDataToDefault();
+    setRerouteResult(null);
+    setSelectedShipment(null);
+  };
+
   // Only AT_RISK or DELAYED shipments require rerouting
   const canReroute = activeSelected?.status === 'AT_RISK' || activeSelected?.status === 'DELAYED';
 
@@ -115,24 +122,36 @@ export const LiveMapPage: React.FC = () => {
       let newPath: string[];
       let summary: string;
       let timeSaved = 45;
+      let newLoc = 'Bengaluru';
+      let lat = 12.9716;
+      let lng = 77.5946;
 
       switch (shipment.id) {
         case 'SHP-9001': // Delhi -> Kolkata
           newPath = ['Delhi', 'Jaipur', 'Visakhapatnam', 'Kolkata'];
           summary = `Bypassed NH19 highway storm bottleneck. Diverted via Jaipur → Visakhapatnam corridor. Saved 180 minutes!`;
           timeSaved = 180;
+          newLoc = 'Jaipur';
+          lat = 26.9124;
+          lng = 75.7873;
           break;
 
         case 'SHP-1004': // Hyderabad -> Kolkata
           newPath = ['Hyderabad', 'Visakhapatnam', 'Kolkata'];
           summary = `Bypassed NH16 highway flooding. Diverted through Visakhapatnam coastal bypass. Saved 100 minutes!`;
           timeSaved = 100;
+          newLoc = 'Visakhapatnam';
+          lat = 17.6868;
+          lng = 83.2185;
           break;
 
         default: // SHIP-001 Chennai -> Mumbai
           newPath = ['Chennai', 'Bengaluru', 'Pune', 'Mumbai'];
           summary = `Bypassed 90% capacity congestion in Hyderabad. Diverted through Bengaluru → Pune bypass corridor. Saved 140 minutes!`;
           timeSaved = 140;
+          newLoc = 'Bengaluru';
+          lat = 12.9716;
+          lng = 77.5946;
           break;
       }
       
@@ -143,6 +162,9 @@ export const LiveMapPage: React.FC = () => {
       });
 
       await db.shipments.update(shipment.id, {
+        currentLocation: newLoc,
+        lat,
+        lng,
         currentRoute: newPath,
         routePath: newPath,
         status: 'REROUTED',
@@ -151,12 +173,24 @@ export const LiveMapPage: React.FC = () => {
         lastUpdated: new Date().toISOString()
       });
 
+      setSelectedShipment(prev => prev ? {
+        ...prev,
+        currentLocation: newLoc,
+        lat,
+        lng,
+        currentRoute: newPath,
+        routePath: newPath,
+        status: 'REROUTED',
+        riskLevel: 'MEDIUM',
+        delayMinutes: 15
+      } : null);
+
       await appsyncRealtime.publishRealtimeUpdate({
         type: 'SHIPMENT_ROUTE_UPDATED',
         shipmentId: shipment.id,
-        latitude: shipment.lat || 12.9716,
-        longitude: shipment.lng || 77.5946,
-        currentLocation: shipment.currentLocation || 'Bengaluru',
+        latitude: lat,
+        longitude: lng,
+        currentLocation: newLoc,
         status: 'REROUTED',
         riskScore: 0.35,
         riskLevel: 'MEDIUM',
@@ -188,6 +222,15 @@ export const LiveMapPage: React.FC = () => {
 
         {/* Real-time Open-Source Traffic API & View Mode Controls */}
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleResetDemo}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-300 transition-all cursor-pointer shadow-xs"
+            title="Reset demo packages back to 3 AT_RISK state for presentation"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
+            <span>Reset Demo</span>
+          </button>
+
           <button
             onClick={handleFetchLiveTraffic}
             disabled={isFetchingTraffic}

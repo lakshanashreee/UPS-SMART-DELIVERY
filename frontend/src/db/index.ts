@@ -13,7 +13,7 @@ export class LogisticsDatabase extends Dexie {
 
   constructor() {
     super('LogisticsControlTowerDB');
-    this.version(4).stores({
+    this.version(5).stores({
       shipments: 'id, trackingNumber, status, riskLevel, currentLocation',
       hubs: 'id, name, city',
       networkEdges: 'id, source, target, status',
@@ -28,7 +28,7 @@ export class LogisticsDatabase extends Dexie {
 
 export const db = new LogisticsDatabase();
 
-export async function seedInitialData() {
+export async function resetDemoDataToDefault() {
   const sampleHubs: HubNode[] = [
     { id: 'HUB-CHE', name: 'Chennai Hub', city: 'Chennai', lat: 13.0827, lng: 80.2707, capacityPercentage: 60, delayMultiplier: 1.0 },
     { id: 'HUB-HYD', name: 'Hyderabad Hub', city: 'Hyderabad', lat: 17.3850, lng: 78.4867, capacityPercentage: 90, delayMultiplier: 2.2 },
@@ -63,8 +63,8 @@ export async function seedInitialData() {
       trackingNumber: 'TRK-CHE-MUM-001',
       origin: 'Chennai',
       destination: 'Mumbai',
-      currentLocation: 'Hyderabad',
-      coordinates: [78.4867, 17.3850],
+      currentLocation: 'Chennai',
+      coordinates: [80.2707, 13.0827],
       status: 'AT_RISK',
       riskLevel: 'HIGH',
       etaMinutes: 720,
@@ -72,8 +72,8 @@ export async function seedInitialData() {
       originalRoute: ['Chennai', 'Hyderabad', 'Mumbai'],
       currentRoute: ['Chennai', 'Hyderabad', 'Mumbai'],
       delayMinutes: 180,
-      lat: 17.3850,
-      lng: 78.4867,
+      lat: 13.0827,
+      lng: 80.2707,
       lastUpdated: new Date().toISOString(),
       carrier: 'Express Cargo'
     },
@@ -176,7 +176,7 @@ export async function seedInitialData() {
 
   const sampleMetadata: MetadataItem[] = [
     { key: 'lastSyncedAt', value: new Date().toISOString(), lastSyncedAt: new Date().toISOString() },
-    { key: 'dbVersion', value: '4.0.0' }
+    { key: 'dbVersion', value: '5.0.0' }
   ];
 
   await db.hubs.clear();
@@ -190,4 +190,12 @@ export async function seedInitialData() {
 
   await db.metadata.clear();
   await db.metadata.bulkAdd(sampleMetadata);
+}
+
+export async function seedInitialData() {
+  const count = await db.shipments.count();
+  // Only populate if empty so user rerouting persists across page refreshes!
+  if (count === 0) {
+    await resetDemoDataToDefault();
+  }
 }
