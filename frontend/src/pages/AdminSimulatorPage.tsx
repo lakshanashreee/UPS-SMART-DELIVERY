@@ -4,8 +4,10 @@ import { db } from '../db';
 import { Cpu, Send, Radio, History, CheckCircle, ShieldCheck, AlertTriangle } from 'lucide-react';
 import type { Shipment } from '../types';
 import { syncManager } from '../utils/syncManager';
+import { useAuth } from '../context/AuthContext';
 
 export const AdminSimulatorPage: React.FC = () => {
+  const { user } = useAuth();
   const shipments = useLiveQuery(() => db.shipments.toArray(), [], []);
   const scanLogs = useLiveQuery(() => db.scanEvents.reverse().limit(15).toArray(), [], []);
 
@@ -17,23 +19,22 @@ export const AdminSimulatorPage: React.FC = () => {
   const [latitude, setLatitude] = useState<number>(17.3850);
   const [longitude, setLongitude] = useState<number>(78.4867);
   
-  // Auth state simulation
-  const [isAdminRole, setIsAdminRole] = useState<boolean>(true);
   const [lastEmittedMsg, setLastEmittedMsg] = useState<string | null>(null);
   const [pipelineLogs, setPipelineLogs] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Hub presets helper
+  const isAdminRole = user?.role === 'ADMIN';
+
+  // Hub presets helper (Pure Indian Logistics Hubs)
   const hubPresets: Record<string, { lat: number; lng: number }> = {
     Hyderabad: { lat: 17.3850, lng: 78.4867 },
     Chennai: { lat: 13.0827, lng: 80.2707 },
     Bengaluru: { lat: 12.9716, lng: 77.5946 },
     Mumbai: { lat: 19.0760, lng: 72.8777 },
     Pune: { lat: 18.5204, lng: 73.8567 },
-    Atlanta: { lat: 33.7490, lng: -84.3880 },
-    Birmingham: { lat: 33.5186, lng: -86.8104 },
-    Charlotte: { lat: 35.2271, lng: -80.8431 },
-    Dallas: { lat: 32.7767, lng: -96.7970 }
+    Delhi: { lat: 28.6139, lng: 77.2090 },
+    Kolkata: { lat: 22.5726, lng: 88.3639 },
+    Ahmedabad: { lat: 23.0225, lng: 72.5714 }
   };
 
   const handleHubChange = (hubName: string) => {
@@ -46,7 +47,7 @@ export const AdminSimulatorPage: React.FC = () => {
 
   const handleEmitEvent = async () => {
     if (!isAdminRole) {
-      alert('Access Denied: Only ADMIN group members can emit legacy system simulator events.');
+      alert('Access Denied: Only ADMIN group users can emit legacy system simulator events.');
       return;
     }
 
@@ -87,7 +88,6 @@ export const AdminSimulatorPage: React.FC = () => {
     logs.push(`[3/9] IoT Rule matched topic 'logistics/events' → Invoking Event Processor Lambda`);
     logs.push(`[4/9] Event Processor validated event and saved to DynamoDB logistics_events table`);
 
-    // Ensure SHIP-001 exists in local Dexie DB for seamless test
     let targetShipment = await db.shipments.get(selectedShipmentId);
     if (!targetShipment && selectedShipmentId === 'SHIP-001') {
       const defaultShip001: Shipment = {
@@ -103,13 +103,12 @@ export const AdminSimulatorPage: React.FC = () => {
         delayMinutes: 0,
         routePath: ['Chennai', 'Hyderabad', 'Mumbai'],
         lastUpdated: timestamp,
-        carrier: 'Express Logistics'
+        carrier: 'Express Freight Corp'
       };
       await db.shipments.add(defaultShip001);
       targetShipment = defaultShip001;
     }
 
-    // Handle LOCATION_UPDATE / ARRIVED / DEPARTED
     if (['LOCATION_UPDATE', 'ARRIVED', 'DEPARTED'].includes(eventType)) {
       logs.push(`[5/9] Updated shipment location: ${selectedHub} [Lat: ${latitude}, Lng: ${longitude}]`);
       if (targetShipment) {
@@ -121,12 +120,11 @@ export const AdminSimulatorPage: React.FC = () => {
       }
     }
 
-    // Handle CONGESTION / WEATHER_DELAY / HUB_DELAY
     if (['CONGESTION', 'WEATHER_DELAY', 'HUB_DELAY'].includes(eventType)) {
       logs.push(`[5/9] Updated network edge condition for ${selectedHub}: +${delayMinutesInput} mins delay penalty`);
       logs.push(`[6/9] Dijkstra recalculating optimal route avoiding congested edge ${selectedHub}...`);
       
-      const newPath = ['Chennai', 'Bengaluru', 'Pune', 'Mumbai']; // Alternative path bypassing congested Hyderabad
+      const newPath = ['Chennai', 'Bengaluru', 'Pune', 'Mumbai'];
       const newEta = (targetShipment?.etaMinutes || 720) + delayMinutesInput;
       const newRisk = delayMinutesInput > 120 ? 'HIGH' : 'MEDIUM';
       const newStatus = delayMinutesInput > 120 ? 'AT_RISK' : 'DELAYED';
@@ -147,7 +145,6 @@ export const AdminSimulatorPage: React.FC = () => {
       }
     }
 
-    // Log event in Dexie scan log
     await db.scanEvents.add({
       id: eventId,
       timestamp,
@@ -166,47 +163,44 @@ export const AdminSimulatorPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div>
-          <h2 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
-            <Cpu className="w-6 h-6 text-amber-400" />
-            Admin Legacy Simulator (Phase 3)
+          <h2 className="text-xl sm:text-2xl font-extrabold text-[#351C15] tracking-tight flex items-center gap-2">
+            <Cpu className="w-6 h-6 text-[#D97706]" />
+            Admin Legacy Feed Simulator
           </h2>
-          <p className="text-sm text-slate-400 mt-0.5">
-            Simulate legacy RFID scanner inputs and message queue streams via API Gateway $\rightarrow$ Lambda $\rightarrow$ AWS IoT Core.
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">
+            Simulate RFID scanner telematics via API Gateway $\rightarrow$ Lambda $\rightarrow$ AWS IoT Core
           </p>
         </div>
 
-        {/* Cognito ADMIN Group Toggle */}
-        <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-xs">
-          <ShieldCheck className={`w-4 h-4 ${isAdminRole ? 'text-emerald-400' : 'text-slate-500'}`} />
-          <span className="text-slate-300 font-semibold">Cognito Role:</span>
-          <button
-            onClick={() => setIsAdminRole(!isAdminRole)}
-            className={`px-2 py-0.5 rounded font-bold transition-all cursor-pointer ${
-              isAdminRole ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-400'
-            }`}
-          >
-            {isAdminRole ? 'ADMIN' : 'OPERATOR (ReadOnly)'}
-          </button>
+        {/* Cognito User Role Chip */}
+        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs">
+          <ShieldCheck className={`w-4 h-4 ${isAdminRole ? 'text-emerald-600' : 'text-slate-400'}`} />
+          <span className="text-slate-600 font-bold">Cognito Role:</span>
+          <span className={`px-2 py-0.5 rounded font-extrabold text-[11px] ${
+            isAdminRole ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {user?.role || 'ADMIN'}
+          </span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Controls Card */}
-        <div className="glass-panel p-5 rounded-xl space-y-4">
-          <h3 className="font-bold text-lg text-white flex items-center gap-2 border-b border-slate-800 pb-3">
-            <Radio className="w-5 h-5 text-amber-400 animate-pulse" />
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <h3 className="font-extrabold text-base text-[#351C15] flex items-center gap-2 border-b border-slate-100 pb-3">
+            <Radio className="w-5 h-5 text-[#D97706] animate-pulse" />
             Simulate Legacy RFID Event
           </h3>
 
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-semibold text-slate-400">Target Shipment:</label>
+              <label className="text-xs font-bold text-slate-600">Target Shipment:</label>
               <select
                 value={selectedShipmentId}
                 onChange={e => setSelectedShipmentId(e.target.value)}
-                className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white"
+                className="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-[#FFB500]"
               >
                 <option value="SHIP-001">SHIP-001 (Chennai → Mumbai)</option>
                 {shipments?.filter(s => s.id !== 'SHIP-001').map(s => (
@@ -218,27 +212,27 @@ export const AdminSimulatorPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-400">Event Type:</label>
+              <label className="text-xs font-bold text-slate-600">Event Type:</label>
               <select
                 value={eventType}
                 onChange={e => setEventType(e.target.value as any)}
-                className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white"
+                className="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-[#FFB500]"
               >
                 <option value="CONGESTION">CONGESTION (Traffic Bottleneck)</option>
-                <option value="LOCATION_UPDATE">LOCATION_UPDATE (Telemetry GPS Checkpoint)</option>
+                <option value="LOCATION_UPDATE">LOCATION_UPDATE (GPS Telemetry Checkpoint)</option>
                 <option value="ARRIVED">ARRIVED (Hub Check-In)</option>
                 <option value="DEPARTED">DEPARTED (Hub Departure)</option>
-                <option value="WEATHER_DELAY">WEATHER_DELAY (Severe Storm)</option>
-                <option value="HUB_DELAY">HUB_DELAY (Warehouse Congestion)</option>
+                <option value="WEATHER_DELAY">WEATHER_DELAY (Severe Weather)</option>
+                <option value="HUB_DELAY">HUB_DELAY (Warehouse Bottleneck)</option>
               </select>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-400">Hub Location:</label>
+              <label className="text-xs font-bold text-slate-600">Hub Location:</label>
               <select
                 value={selectedHub}
                 onChange={e => handleHubChange(e.target.value)}
-                className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white"
+                className="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-[#FFB500]"
               >
                 {Object.keys(hubPresets).map(h => (
                   <option key={h} value={h}>{h}</option>
@@ -248,12 +242,12 @@ export const AdminSimulatorPage: React.FC = () => {
 
             {['CONGESTION', 'WEATHER_DELAY', 'HUB_DELAY'].includes(eventType) && (
               <div>
-                <label className="text-xs font-semibold text-slate-400">Delay (Minutes):</label>
+                <label className="text-xs font-bold text-slate-600">Delay Penalty (Minutes):</label>
                 <input
                   type="number"
                   value={delayMinutesInput}
                   onChange={e => setDelayMinutesInput(Number(e.target.value))}
-                  className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white"
+                  className="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-[#FFB500]"
                 />
               </div>
             )}
@@ -261,23 +255,23 @@ export const AdminSimulatorPage: React.FC = () => {
             {['LOCATION_UPDATE', 'ARRIVED', 'DEPARTED'].includes(eventType) && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs font-semibold text-slate-400">Latitude:</label>
+                  <label className="text-xs font-bold text-slate-600">Latitude:</label>
                   <input
                     type="number"
                     step="0.0001"
                     value={latitude}
                     onChange={e => setLatitude(Number(e.target.value))}
-                    className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white"
+                    className="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs text-slate-900 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-400">Longitude:</label>
+                  <label className="text-xs font-bold text-slate-600">Longitude:</label>
                   <input
                     type="number"
                     step="0.0001"
                     value={longitude}
                     onChange={e => setLongitude(Number(e.target.value))}
-                    className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white"
+                    className="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs text-slate-900 outline-none"
                   />
                 </div>
               </div>
@@ -286,10 +280,10 @@ export const AdminSimulatorPage: React.FC = () => {
             <button
               onClick={handleEmitEvent}
               disabled={isSubmitting || !isAdminRole}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 font-bold text-sm rounded-lg transition-all cursor-pointer mt-2 ${
+              className={`w-full flex items-center justify-center gap-2 py-2.5 font-extrabold text-xs rounded-xl transition-all cursor-pointer mt-2 border border-[#D97706] ${
                 isAdminRole
-                  ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20'
-                  : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                  ? 'bg-[#FFB500] hover:bg-[#e6a300] text-[#351C15] shadow-xs'
+                  : 'bg-slate-200 text-slate-500 cursor-not-allowed border-slate-300'
               }`}
             >
               <Send className="w-4 h-4" />
@@ -297,49 +291,49 @@ export const AdminSimulatorPage: React.FC = () => {
             </button>
 
             {!isAdminRole && (
-              <div className="p-3 bg-amber-950/30 border border-amber-500/30 text-amber-300 text-xs rounded-lg flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-400" />
-                <span>Only ADMIN group users can emit simulator events. Toggle role to ADMIN above.</span>
+              <div className="p-3 bg-amber-50 border border-amber-300 text-amber-900 text-xs rounded-xl flex items-center gap-2 font-medium">
+                <AlertTriangle className="w-4 h-4 text-[#D97706]" />
+                <span>Only ADMIN group users can emit simulator events.</span>
               </div>
             )}
           </div>
         </div>
 
-        {/* End-to-End Event Processing Pipeline Output */}
-        <div className="glass-panel p-5 rounded-xl space-y-4">
-          <h3 className="font-bold text-lg text-white flex items-center gap-2 border-b border-slate-800 pb-3">
-            <History className="w-5 h-5 text-amber-400" />
+        {/* End-to-End Processing Verification Output */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <h3 className="font-extrabold text-base text-[#351C15] flex items-center gap-2 border-b border-slate-100 pb-3">
+            <History className="w-5 h-5 text-[#D97706]" />
             End-to-End Processing Verification
           </h3>
 
           {lastEmittedMsg && (
-            <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs rounded-lg flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-emerald-400" />
+            <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs rounded-xl flex items-center gap-2 font-bold">
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
               <span>{lastEmittedMsg}</span>
             </div>
           )}
 
-          <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1 bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-[11px]">
+          <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1 bg-slate-900 text-slate-100 p-3.5 rounded-xl border border-slate-800 font-mono text-[11px]">
             {pipelineLogs.map((log, idx) => (
-              <div key={idx} className="text-slate-300 border-b border-slate-900 pb-1">
+              <div key={idx} className="border-b border-slate-800 pb-1">
                 {log}
               </div>
             ))}
 
             {pipelineLogs.length === 0 && (
-              <p className="text-slate-500 italic text-center py-8">
+              <p className="text-slate-400 italic text-center py-8 font-sans">
                 Select parameters above and click "SEND EVENT" to observe the 9-step API Gateway $\rightarrow$ IoT Core $\rightarrow$ Dijkstra Rerouting pipeline.
               </p>
             )}
           </div>
 
-          <div className="border-t border-slate-800 pt-3">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Ingested Scan Log History</h4>
+          <div className="border-t border-slate-100 pt-3">
+            <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Ingested Scan Log History</h4>
             <div className="space-y-1 max-h-[140px] overflow-y-auto">
               {scanLogs?.map(evt => (
-                <div key={evt.id} className="p-2 bg-slate-900/60 rounded text-[10px] flex justify-between items-center font-mono">
-                  <span className="text-amber-400 font-bold">{evt.eventType}</span>
-                  <span className="text-slate-300">{evt.shipmentId} @ {evt.hubId}</span>
+                <div key={evt.id} className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] flex justify-between items-center font-mono">
+                  <span className="text-[#351C15] font-extrabold">{evt.eventType}</span>
+                  <span className="text-slate-700 font-bold">{evt.shipmentId} @ {evt.hubId}</span>
                   <span className="text-slate-500">{new Date(evt.timestamp).toLocaleTimeString()}</span>
                 </div>
               ))}

@@ -52,3 +52,16 @@ resource "aws_cognito_user_group" "operator" {
   user_pool_id = aws_cognito_user_pool.pool.id
   description  = "Operator group with standard operations access"
 }
+
+# Provision Default Admin User in Cognito User Pool
+resource "aws_cognito_user" "admin_user" {
+  user_pool_id = aws_cognito_user_pool.pool.id
+  username     = "admin@ups.com"
+
+  attributes = {
+    email          = "admin@ups.com"
+    email_verified = "true"
+  }
+
+  password = "UPSAdmin#2026"
+}

@@ -40,7 +40,7 @@ EOF
 
 resource "aws_appsync_api_key" "events_api_key" {
   api_id  = aws_appsync_graphql_api.events_api.id
-  expires = timeadd(timestamp(), "8760h") # 1 year
+  expires = timeadd(timestamp(), "4320h") # 180 days
 }
 
 output "appsync_events_endpoint" {

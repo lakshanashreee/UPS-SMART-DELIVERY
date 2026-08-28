@@ -5,32 +5,39 @@ import { DashboardPage } from './pages/DashboardPage';
 import { LiveMapPage } from './pages/LiveMapPage';
 import { ShipmentsPage } from './pages/ShipmentsPage';
 import { AdminSimulatorPage } from './pages/AdminSimulatorPage';
+import { LoginPage } from './pages/LoginPage';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { seedInitialData } from './db';
 import type { ActivePage } from './types';
 
-export const App: React.FC = () => {
+const MainAppContent: React.FC = () => {
+  const { isAuthenticated } = useAuth();
   const [activePage, setActivePage] = useState<ActivePage>('dashboard');
 
   useEffect(() => {
-    // Seed Dexie IndexedDB with initial mock data
+    // Seed Dexie IndexedDB with initial clean India hub data
     seedInitialData().catch(console.error);
   }, []);
 
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={() => setActivePage('dashboard')} />;
+  }
+
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100 font-sans">
-      {/* Sidebar */}
+    <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
+      {/* UPS Sidebar */}
       <Sidebar activePage={activePage} onNavigate={setActivePage} />
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0">
-        {/* Top Header Bar */}
-        <header className="h-16 border-b border-slate-800/80 bg-slate-900/40 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-20">
+        {/* Top Light Header Bar */}
+        <header className="h-16 border-b border-slate-200 bg-white px-6 flex items-center justify-between sticky top-0 z-20 shadow-xs">
           <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold px-2.5 py-1 bg-amber-500/10 text-amber-400 rounded-md border border-amber-500/20">
-              Phase 0 Foundation Shell
+            <span className="text-xs font-bold px-2.5 py-1 bg-amber-100 text-amber-900 rounded-md border border-amber-300">
+              UPS Control Tower MVP
             </span>
-            <span className="text-xs text-slate-400 hidden sm:inline">
-              Smart Delivery & Delay Tracker
+            <span className="text-xs text-slate-500 font-medium hidden sm:inline">
+              Smart Delivery & Realtime Delay Tracker
             </span>
           </div>
 
@@ -39,7 +46,7 @@ export const App: React.FC = () => {
         </header>
 
         {/* Page View Wrapper */}
-        <div className="p-6 flex-1 overflow-y-auto">
+        <div className="p-6 flex-1 overflow-y-auto bg-slate-50">
           {activePage === 'dashboard' && <DashboardPage onNavigate={setActivePage} />}
           {activePage === 'map' && <LiveMapPage />}
           {activePage === 'shipments' && <ShipmentsPage />}
@@ -47,6 +54,14 @@ export const App: React.FC = () => {
         </div>
       </main>
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <MainAppContent />
+    </AuthProvider>
   );
 };
 
