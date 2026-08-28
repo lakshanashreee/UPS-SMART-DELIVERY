@@ -124,9 +124,16 @@ export const AdminSimulatorPage: React.FC = () => {
       logs.push(`[4/6] Traffic delay detected at ${selectedHub}: +${delayMinutesInput} mins delay penalty`);
       logs.push(`[5/6] Smart Routing recalculates optimal route bypassing bottleneck...`);
       
-      const newPath = selectedShipmentId === 'SHP-9001' 
-        ? ['Delhi', 'Jaipur', 'Visakhapatnam', 'Kolkata'] 
-        : ['Chennai', 'Bengaluru', 'Pune', 'Mumbai'];
+      let newPath: string[];
+      if (selectedShipmentId === 'SHP-9001') {
+        newPath = ['Delhi', 'Jaipur', 'Kolkata'];
+      } else if (selectedShipmentId === 'SHP-1004') {
+        newPath = ['Hyderabad', 'Visakhapatnam', 'Kolkata'];
+      } else if (selectedShipmentId === 'SHP-1005') {
+        newPath = ['Pune', 'Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'];
+      } else {
+        newPath = ['Chennai', 'Bengaluru', 'Pune', 'Mumbai'];
+      }
 
       const newRisk = delayMinutesInput > 120 ? 'HIGH' : 'MEDIUM';
       const newStatus = delayMinutesInput > 120 ? 'AT_RISK' : 'DELAYED';

@@ -147,7 +147,35 @@ export const LiveMapPage: React.FC = () => {
           lng = 83.2185;
           break;
 
-        default: // SHIP-001 Chennai -> Mumbai
+        case 'SHP-1005': // Pune -> Delhi
+          newPath = ['Pune', 'Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'];
+          summary = `Bypassed Western Expressway bottleneck. Diverted via Mumbai-Ahmedabad corridor. Saved 120 minutes!`;
+          timeSaved = 120;
+          newLoc = 'Mumbai';
+          lat = 19.0760;
+          lng = 72.8777;
+          break;
+
+        case 'SHP-1002': // Mumbai -> Delhi
+          newPath = ['Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'];
+          summary = `Bypassed NH48 highway congestion. Diverted via Golden Quadrilateral corridor. Saved 90 minutes!`;
+          timeSaved = 90;
+          newLoc = 'Ahmedabad';
+          lat = 23.0225;
+          lng = 72.5714;
+          break;
+
+        case 'SHP-1003': // Bengaluru -> Chennai
+          newPath = ['Bengaluru', 'Chennai'];
+          summary = `Bypassed NH44 traffic bottleneck. Diverted via direct Express Corridor. Saved 60 minutes!`;
+          timeSaved = 60;
+          newLoc = 'Bengaluru';
+          lat = 12.9716;
+          lng = 77.5946;
+          break;
+
+        case 'SHIP-001': // Chennai -> Mumbai
+        default:
           newPath = ['Chennai', 'Bengaluru', 'Pune', 'Mumbai'];
           summary = `Bypassed 90% capacity congestion in Hyderabad. Diverted through Bengaluru → Pune bypass corridor. Saved 140 minutes!`;
           timeSaved = 140;
