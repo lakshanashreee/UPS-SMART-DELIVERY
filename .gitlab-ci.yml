@@ -14,8 +14,9 @@ test-backend:
   stage: test
   script:
     - Write-Host "Running Backend Python Routing Unit Tests..."
+    - $env:PATH="C:\Users\Lakshana\AppData\Local\Programs\Python\Python313;C:\Users\Lakshana\AppData\Local\Programs\Python\Launcher;" + $env:PATH
     - $env:PYTHONPATH="."
-    - if (Get-Command py -ErrorAction SilentlyContinue) { py -3 -m unittest discover -s backend/routing } else { python -m unittest discover -s backend/routing }
+    - python -m unittest discover -s backend/routing
   rules:
     - changes:
         - backend/**/*
@@ -43,8 +44,9 @@ build-backend:
     - test-backend
   script:
     - Write-Host "Validating Backend Python Modules..."
+    - $env:PATH="C:\Users\Lakshana\AppData\Local\Programs\Python\Python313;C:\Users\Lakshana\AppData\Local\Programs\Python\Launcher;" + $env:PATH
     - $env:PYTHONPATH="."
-    - if (Get-Command py -ErrorAction SilentlyContinue) { py -3 -m py_compile backend/routing/dijkstra.py backend/routing/risk_engine.py } else { python -m py_compile backend/routing/dijkstra.py backend/routing/risk_engine.py }
+    - python -m py_compile backend/routing/dijkstra.py backend/routing/risk_engine.py
   rules:
     - changes:
         - backend/**/*
