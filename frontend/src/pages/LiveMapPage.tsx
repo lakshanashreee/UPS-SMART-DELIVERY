@@ -9,12 +9,12 @@ import {
   Radio,
   CheckCircle2,
   Zap,
-  ArrowRight
+  ArrowRight,
+  Package
 } from 'lucide-react';
 import type { Shipment } from '../types';
 import { appsyncRealtime, type RealtimeShipmentPayload } from '../utils/appsyncRealtime';
 
-// Pure Indian Cities layout coordinates on SVG Canvas (600 x 360)
 interface CityNode {
   id: string;
   name: string;
@@ -23,14 +23,16 @@ interface CityNode {
 }
 
 const INDIAN_CITY_NODES: CityNode[] = [
-  { id: 'Delhi', name: 'Delhi', x: 300, y: 55 },
-  { id: 'Ahmedabad', name: 'Ahmedabad', x: 120, y: 130 },
-  { id: 'Kolkata', name: 'Kolkata', x: 480, y: 130 },
-  { id: 'Hyderabad', name: 'Hyderabad', x: 330, y: 195 },
-  { id: 'Mumbai', name: 'Mumbai', x: 140, y: 220 },
-  { id: 'Pune', name: 'Pune', x: 230, y: 250 },
-  { id: 'Bengaluru', name: 'Bengaluru', x: 260, y: 310 },
-  { id: 'Chennai', name: 'Chennai', x: 400, y: 310 },
+  { id: 'Delhi', name: 'Delhi', x: 300, y: 45 },
+  { id: 'Jaipur', name: 'Jaipur', x: 210, y: 95 },
+  { id: 'Ahmedabad', name: 'Ahmedabad', x: 120, y: 145 },
+  { id: 'Kolkata', name: 'Kolkata', x: 490, y: 145 },
+  { id: 'Hyderabad', name: 'Hyderabad', x: 340, y: 205 },
+  { id: 'Visakhapatnam', name: 'Visakhapatnam', x: 450, y: 235 },
+  { id: 'Mumbai', name: 'Mumbai', x: 140, y: 235 },
+  { id: 'Pune', name: 'Pune', x: 220, y: 260 },
+  { id: 'Bengaluru', name: 'Bengaluru', x: 260, y: 315 },
+  { id: 'Chennai', name: 'Chennai', x: 390, y: 315 },
 ];
 
 const NETWORK_LINKS = [
@@ -39,11 +41,13 @@ const NETWORK_LINKS = [
   { from: 'Chennai', to: 'Bengaluru' },
   { from: 'Bengaluru', to: 'Pune' },
   { from: 'Pune', to: 'Mumbai' },
-  { from: 'Mumbai', to: 'Delhi' },
+  { from: 'Mumbai', to: 'Ahmedabad' },
+  { from: 'Ahmedabad', to: 'Jaipur' },
+  { from: 'Jaipur', to: 'Delhi' },
   { from: 'Delhi', to: 'Kolkata' },
-  { from: 'Kolkata', to: 'Chennai' },
-  { from: 'Ahmedabad', to: 'Mumbai' },
-  { from: 'Delhi', to: 'Ahmedabad' }
+  { from: 'Kolkata', to: 'Visakhapatnam' },
+  { from: 'Visakhapatnam', to: 'Chennai' },
+  { from: 'Visakhapatnam', to: 'Hyderabad' }
 ];
 
 export const LiveMapPage: React.FC = () => {
@@ -90,8 +94,16 @@ export const LiveMapPage: React.FC = () => {
     setRerouteResult(null);
 
     setTimeout(async () => {
-      const newPath = ['Chennai', 'Bengaluru', 'Pune', 'Mumbai'];
-      const summary = `Bypassed traffic bottleneck in Hyderabad. Diverted through Bengaluru → Pune corridor. Saved 140 minutes!`;
+      let newPath: string[];
+      let summary: string;
+
+      if (shipment.id === 'SHP-9001') {
+        newPath = ['Delhi', 'Jaipur', 'Ahmedabad', 'Mumbai', 'Chennai', 'Visakhapatnam', 'Kolkata'];
+        summary = `Bypassed storm delay between Delhi & Kolkata. Diverted via Jaipur → Ahmedabad corridor.`;
+      } else {
+        newPath = ['Chennai', 'Bengaluru', 'Pune', 'Mumbai'];
+        summary = `Bypassed traffic congestion in Hyderabad. Diverted through Bengaluru → Pune corridor. Saved 140 mins!`;
+      }
       
       setRerouteResult({
         path: newPath,
@@ -113,7 +125,7 @@ export const LiveMapPage: React.FC = () => {
         shipmentId: shipment.id,
         latitude: 18.5204,
         longitude: 73.8567,
-        currentLocation: 'Pune',
+        currentLocation: shipment.currentLocation || 'Pune',
         status: 'REROUTED',
         riskScore: 0.45,
         riskLevel: 'MEDIUM',
@@ -139,7 +151,7 @@ export const LiveMapPage: React.FC = () => {
             Live Shipment Tracker & Route Graph
           </h2>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            Realtime package positions and delivery flows across Indian logistics corridors
+            Realtime package positions across Indian trade hubs powered by AWS AppSync WebSockets
           </p>
         </div>
 
@@ -165,7 +177,7 @@ export const LiveMapPage: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Interactive Route Flow Diagram SVG Canvas */}
+        {/* SVG Route Flow Diagram Canvas (Light Theme) */}
         <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col space-y-4">
           
           {/* Legend Banner */}
@@ -179,7 +191,7 @@ export const LiveMapPage: React.FC = () => {
                 <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Congested Hub
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-[#FFB500] border-2 border-[#351C15] animate-pulse"></span> Package Location
+                <span className="w-3.5 h-3.5 rounded-full bg-[#FFB500] border-2 border-[#351C15] animate-pulse"></span> Package Location
               </span>
               <span className="flex items-center gap-1 text-[#D97706] font-bold">
                 <ArrowRight className="w-3.5 h-3.5" /> Route Direction
@@ -187,10 +199,10 @@ export const LiveMapPage: React.FC = () => {
             </div>
           </div>
 
-          {/* SVG Graph Flow Diagram */}
-          <div className="w-full bg-slate-900 rounded-2xl border border-slate-800 p-4 relative overflow-hidden flex items-center justify-center min-h-[380px]">
-            {/* Soft grid overlay */}
-            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:20px_20px]" />
+          {/* Clean Light-Mode SVG Visual Canvas */}
+          <div className="w-full bg-slate-50 rounded-2xl border border-slate-200 p-4 relative overflow-hidden flex items-center justify-center min-h-[380px] shadow-inner">
+            {/* Subtle Grid Lines */}
+            <div className="absolute inset-0 opacity-30 bg-[radial-gradient(#94a3b8_1px,transparent_1px)] [background-size:18px_18px]" />
 
             <svg viewBox="0 0 600 360" className="w-full h-auto max-h-[400px] relative z-10">
               <defs>
@@ -203,7 +215,7 @@ export const LiveMapPage: React.FC = () => {
                   markerHeight="6"
                   orient="auto-start-reverse"
                 >
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#FFB500" />
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#D97706" />
                 </marker>
                 <marker
                   id="arrow-default"
@@ -214,17 +226,16 @@ export const LiveMapPage: React.FC = () => {
                   markerHeight="5"
                   orient="auto-start-reverse"
                 >
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" />
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#cbd5e1" />
                 </marker>
               </defs>
 
-              {/* Base Network Links */}
+              {/* Base Network Flow Lines */}
               {NETWORK_LINKS.map((link, idx) => {
                 const source = INDIAN_CITY_NODES.find(n => n.name === link.from);
                 const target = INDIAN_CITY_NODES.find(n => n.name === link.to);
                 if (!source || !target) return null;
 
-                // Check if this link is part of the active package route
                 let isRouteActive = false;
                 for (let i = 0; i < activePath.length - 1; i++) {
                   if (
@@ -243,7 +254,7 @@ export const LiveMapPage: React.FC = () => {
                     y1={source.y}
                     x2={target.x}
                     y2={target.y}
-                    stroke={isRouteActive ? '#FFB500' : '#334155'}
+                    stroke={isRouteActive ? '#D97706' : '#cbd5e1'}
                     strokeWidth={isRouteActive ? '3.5' : '1.5'}
                     strokeDasharray={isRouteActive ? 'none' : '4 4'}
                     markerEnd={isRouteActive ? 'url(#arrow-active)' : 'url(#arrow-default)'}
@@ -252,70 +263,71 @@ export const LiveMapPage: React.FC = () => {
                 );
               })}
 
-              {/* City Nodes */}
+              {/* Indian City Hub Nodes (Clean Light Badges) */}
               {INDIAN_CITY_NODES.map(node => {
                 const isCurrent = currentLoc === node.name;
                 const isOrigin = activeSelected?.origin === node.name;
                 const isDest = activeSelected?.destination === node.name;
-                const isCongested = node.name === 'Hyderabad'; // Highlight bottleneck hub
+                const isCongested = node.name === 'Hyderabad';
 
                 return (
                   <g key={node.id} transform={`translate(${node.x}, ${node.y})`} className="cursor-pointer">
-                    {/* Current Package Location Ripple Ring */}
+                    {/* Pulsing Aura Ring on Current Package Location */}
                     {isCurrent && (
-                      <circle r="22" fill="none" stroke="#FFB500" strokeWidth="2.5" className="animate-ping opacity-75" />
+                      <circle r="20" fill="none" stroke="#FFB500" strokeWidth="3" className="animate-ping opacity-75" />
                     )}
 
-                    {/* Node Dot */}
+                    {/* Hub Status Marker Dot */}
                     <circle
-                      r={isCurrent ? '12' : '8'}
+                      r={isCurrent ? '11' : '7'}
                       fill={
                         isCurrent
                           ? '#FFB500'
                           : isCongested
-                          ? '#f43f5e'
+                          ? '#e11d48'
                           : '#10b981'
                       }
-                      stroke="#ffffff"
+                      stroke="#351C15"
                       strokeWidth="2"
                     />
 
-                    {/* Node Label Box */}
+                    {/* Crisp White Node Badge Container */}
                     <rect
                       x="-42"
-                      y="14"
+                      y="12"
                       width="84"
                       height="22"
                       rx="6"
-                      fill="#0f172a"
-                      stroke={isCurrent ? '#FFB500' : isCongested ? '#f43f5e' : '#334155'}
-                      strokeWidth="1.5"
+                      fill="#ffffff"
+                      stroke={isCurrent ? '#D97706' : isCongested ? '#f43f5e' : '#cbd5e1'}
+                      strokeWidth={isCurrent ? '2' : '1.5'}
+                      className="shadow-xs"
                     />
                     <text
                       x="0"
-                      y="29"
+                      y="27"
                       textAnchor="middle"
-                      fill="#ffffff"
+                      fill="#1e293b"
                       fontSize="10"
-                      fontWeight="bold"
+                      fontWeight="800"
                       fontFamily="sans-serif"
                     >
                       {node.name}
                     </text>
 
-                    {/* Extra Status Badges */}
+                    {/* Role Overlay Labels */}
                     {isCurrent && (
-                      <text x="0" y="-16" textAnchor="middle" fill="#FFB500" fontSize="10" fontWeight="900">
+                      <text x="0" y="-14" textAnchor="middle" fill="#D97706" fontSize="10" fontWeight="900">
                         📍 PACKAGE HERE
                       </text>
                     )}
                     {isOrigin && !isCurrent && (
-                      <text x="0" y="-14" textAnchor="middle" fill="#38bdf8" fontSize="9" fontWeight="bold">
+                      <text x="0" y="-13" textAnchor="middle" fill="#0284c7" fontSize="9" fontWeight="bold">
                         ORIGIN
                       </text>
                     )}
                     {isDest && !isCurrent && (
-                      <text x="0" y="-14" textAnchor="middle" fill="#34d399" fontSize="9" fontWeight="bold">
+                      <text x="0" y="-13" textAnchor="middle" fill="#059669" fontSize="9" fontWeight="bold">
                         DESTINATION
                       </text>
                     )}
@@ -325,11 +337,11 @@ export const LiveMapPage: React.FC = () => {
             </svg>
           </div>
 
-          {/* Active Tracked Package Summary Card */}
+          {/* Active Package Details Card */}
           {activeSelected && (
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-[#FFB500] text-[#351C15] rounded-xl font-bold shadow-xs">
+                <div className="p-3 bg-[#FFB500] text-[#351C15] rounded-xl font-bold border border-[#D97706]">
                   <Navigation className="w-5 h-5 animate-pulse" />
                 </div>
                 <div>
@@ -362,19 +374,22 @@ export const LiveMapPage: React.FC = () => {
           )}
         </div>
 
-        {/* Route Optimization Inspector Panel */}
+        {/* Route Inspector & Selector Panel */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
           <h3 className="font-extrabold text-base text-[#351C15] border-b border-slate-100 pb-3 flex items-center justify-between">
-            <span>Package Route Optimizer</span>
+            <span className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-[#D97706]" />
+              Package Optimizer
+            </span>
             <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
               <Zap className="w-3.5 h-3.5" /> Smart Flow
             </span>
           </h3>
 
-          {/* List of Tracked Packages */}
+          {/* Package Selection List */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Select Package to View Flow:</label>
-            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Select Package ({shipments?.length || 6} Total):</label>
+            <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
               {shipments?.map(shp => (
                 <button
                   key={shp.id}
@@ -389,7 +404,7 @@ export const LiveMapPage: React.FC = () => {
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-[#351C15]">{shp.id}</span>
+                    <span className="font-mono text-[#351C15] font-extrabold">{shp.id}</span>
                     <span className="text-[11px] text-slate-500 font-bold">({shp.origin || 'Chennai'} &rarr; {shp.destination || 'Mumbai'})</span>
                   </div>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -421,7 +436,7 @@ export const LiveMapPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Smart Alternative Route Trigger */}
+              {/* Rerouting Trigger */}
               <button
                 onClick={() => handleOptimizeRoute(activeSelected)}
                 disabled={rerouting}

@@ -13,7 +13,7 @@ export class LogisticsDatabase extends Dexie {
 
   constructor() {
     super('LogisticsControlTowerDB');
-    this.version(2).stores({
+    this.version(3).stores({
       shipments: 'id, trackingNumber, status, riskLevel, currentLocation',
       hubs: 'id, name, city',
       networkEdges: 'id, source, target, status',
@@ -28,26 +28,7 @@ export class LogisticsDatabase extends Dexie {
 
 export const db = new LogisticsDatabase();
 
-// Seed pure Indian Logistics Hubs and purge any legacy US hubs
 export async function seedInitialData() {
-  // Purge legacy US hubs if present in local browser database
-  await db.hubs.where('id').anyOf(['HUB-CHI', 'HUB-CMH', 'HUB-IND']).delete();
-  await db.hubs.where('city').anyOf(['Chicago', 'Columbus', 'Indianapolis']).delete();
-  
-  // Clean old US shipments if present
-  const oldUsShipment = await db.shipments.get('SHP-9001');
-  if (oldUsShipment && (oldUsShipment.origin === 'Chicago' || oldUsShipment.destination === 'Columbus')) {
-    await db.shipments.update('SHP-9001', {
-      origin: 'Delhi',
-      destination: 'Kolkata',
-      currentLocation: 'Delhi',
-      coordinates: [77.2090, 28.6139],
-      lat: 28.6139,
-      lng: 77.2090,
-      trackingNumber: 'TRK-DEL-CCU-901'
-    });
-  }
-
   const sampleHubs: HubNode[] = [
     { id: 'HUB-CHE', name: 'Chennai Hub', city: 'Chennai', lat: 13.0827, lng: 80.2707, capacityPercentage: 60, delayMultiplier: 1.0 },
     { id: 'HUB-HYD', name: 'Hyderabad Hub', city: 'Hyderabad', lat: 17.3850, lng: 78.4867, capacityPercentage: 75, delayMultiplier: 1.2 },
@@ -56,7 +37,9 @@ export async function seedInitialData() {
     { id: 'HUB-MUM', name: 'Mumbai Logistics Center', city: 'Mumbai', lat: 19.0760, lng: 72.8777, capacityPercentage: 80, delayMultiplier: 1.5 },
     { id: 'HUB-DEL', name: 'Delhi Central Hub', city: 'Delhi', lat: 28.6139, lng: 77.2090, capacityPercentage: 85, delayMultiplier: 1.8 },
     { id: 'HUB-CCU', name: 'Kolkata Gateway', city: 'Kolkata', lat: 22.5726, lng: 88.3639, capacityPercentage: 45, delayMultiplier: 1.0 },
-    { id: 'HUB-AMD', name: 'Ahmedabad Logistics Hub', city: 'Ahmedabad', lat: 23.0225, lng: 72.5714, capacityPercentage: 60, delayMultiplier: 1.1 }
+    { id: 'HUB-AMD', name: 'Ahmedabad Logistics Hub', city: 'Ahmedabad', lat: 23.0225, lng: 72.5714, capacityPercentage: 60, delayMultiplier: 1.1 },
+    { id: 'HUB-JAI', name: 'Jaipur Gateway', city: 'Jaipur', lat: 26.9124, lng: 75.7873, capacityPercentage: 40, delayMultiplier: 1.0 },
+    { id: 'HUB-[#VTZ]', name: 'Visakhapatnam Hub', city: 'Visakhapatnam', lat: 17.6868, lng: 83.2185, capacityPercentage: 35, delayMultiplier: 1.0 }
   ];
 
   const sampleEdges: NetworkEdgeItem[] = [
@@ -65,8 +48,12 @@ export async function seedInitialData() {
     { id: 'EDGE-CHE-BLR', source: 'Chennai', target: 'Bengaluru', weight: 210, status: 'CLEAR', delayPenalty: 0 },
     { id: 'EDGE-BLR-PUN', source: 'Bengaluru', target: 'Pune', weight: 300, status: 'CLEAR', delayPenalty: 0 },
     { id: 'EDGE-PUN-MUM', source: 'Pune', target: 'Mumbai', weight: 90, status: 'CLEAR', delayPenalty: 0 },
-    { id: 'EDGE-MUM-DEL', source: 'Mumbai', target: 'Delhi', weight: 480, status: 'CLEAR', delayPenalty: 0 },
-    { id: 'EDGE-DEL-CCU', source: 'Delhi', target: 'Kolkata', weight: 540, status: 'CLEAR', delayPenalty: 0 }
+    { id: 'EDGE-MUM-AMD', source: 'Mumbai', target: 'Ahmedabad', weight: 300, status: 'CLEAR', delayPenalty: 0 },
+    { id: 'EDGE-AMD-JAI', source: 'Ahmedabad', target: 'Jaipur', weight: 360, status: 'CLEAR', delayPenalty: 0 },
+    { id: 'EDGE-JAI-DEL', source: 'Jaipur', target: 'Delhi', weight: 180, status: 'CLEAR', delayPenalty: 0 },
+    { id: 'EDGE-DEL-CCU', source: 'Delhi', target: 'Kolkata', weight: 540, status: 'CLEAR', delayPenalty: 0 },
+    { id: 'EDGE-CCU-VTZ', source: 'Kolkata', target: 'Visakhapatnam', weight: 480, status: 'CLEAR', delayPenalty: 0 },
+    { id: 'EDGE-VTZ-CHE', source: 'Visakhapatnam', target: 'Chennai', weight: 420, status: 'CLEAR', delayPenalty: 0 }
   ];
 
   const sampleShipments: Shipment[] = [
@@ -75,19 +62,19 @@ export async function seedInitialData() {
       trackingNumber: 'TRK-CHE-MUM-001',
       origin: 'Chennai',
       destination: 'Mumbai',
-      currentLocation: 'Chennai',
-      coordinates: [80.2707, 13.0827],
-      status: 'ON_TRACK',
-      riskLevel: 'LOW',
-      etaMinutes: 720,
-      routePath: ['Chennai', 'Hyderabad', 'Mumbai'],
+      currentLocation: 'Pune',
+      coordinates: [73.8567, 18.5204],
+      status: 'REROUTED',
+      riskLevel: 'MEDIUM',
+      etaMinutes: 620,
+      routePath: ['Chennai', 'Bengaluru', 'Pune', 'Mumbai'],
       originalRoute: ['Chennai', 'Hyderabad', 'Mumbai'],
-      currentRoute: ['Chennai', 'Hyderabad', 'Mumbai'],
-      delayMinutes: 0,
-      lat: 13.0827,
-      lng: 80.2707,
+      currentRoute: ['Chennai', 'Bengaluru', 'Pune', 'Mumbai'],
+      delayMinutes: 30,
+      lat: 18.5204,
+      lng: 73.8567,
       lastUpdated: new Date().toISOString(),
-      carrier: 'Express Freight Corp'
+      carrier: 'Express Cargo'
     },
     {
       id: 'SHP-9001',
@@ -102,41 +89,105 @@ export async function seedInitialData() {
       routePath: ['Delhi', 'Kolkata'],
       originalRoute: ['Delhi', 'Kolkata'],
       currentRoute: ['Delhi', 'Kolkata'],
-      delayMinutes: 45,
+      delayMinutes: 180,
       lat: 28.6139,
       lng: 77.2090,
       lastUpdated: new Date().toISOString(),
       carrier: 'North-East Express'
+    },
+    {
+      id: 'SHP-1002',
+      trackingNumber: 'TRK-BOM-DEL-102',
+      origin: 'Mumbai',
+      destination: 'Delhi',
+      currentLocation: 'Ahmedabad',
+      coordinates: [72.5714, 23.0225],
+      status: 'ON_TRACK',
+      riskLevel: 'LOW',
+      etaMinutes: 480,
+      routePath: ['Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'],
+      originalRoute: ['Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'],
+      currentRoute: ['Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'],
+      delayMinutes: 0,
+      lat: 23.0225,
+      lng: 72.5714,
+      lastUpdated: new Date().toISOString(),
+      carrier: 'Western Logistics'
+    },
+    {
+      id: 'SHP-1003',
+      trackingNumber: 'TRK-BLR-CHE-103',
+      origin: 'Bengaluru',
+      destination: 'Chennai',
+      currentLocation: 'Bengaluru',
+      coordinates: [77.5946, 12.9716],
+      status: 'ON_TRACK',
+      riskLevel: 'LOW',
+      etaMinutes: 210,
+      routePath: ['Bengaluru', 'Chennai'],
+      originalRoute: ['Bengaluru', 'Chennai'],
+      currentRoute: ['Bengaluru', 'Chennai'],
+      delayMinutes: 0,
+      lat: 12.9716,
+      lng: 77.5946,
+      lastUpdated: new Date().toISOString(),
+      carrier: 'South India Express'
+    },
+    {
+      id: 'SHP-1004',
+      trackingNumber: 'TRK-HYD-CCU-104',
+      origin: 'Hyderabad',
+      destination: 'Kolkata',
+      currentLocation: 'Hyderabad',
+      coordinates: [78.4867, 17.3850],
+      status: 'DELAYED',
+      riskLevel: 'MEDIUM',
+      etaMinutes: 600,
+      routePath: ['Hyderabad', 'Visakhapatnam', 'Kolkata'],
+      originalRoute: ['Hyderabad', 'Visakhapatnam', 'Kolkata'],
+      currentRoute: ['Hyderabad', 'Visakhapatnam', 'Kolkata'],
+      delayMinutes: 45,
+      lat: 17.3850,
+      lng: 78.4867,
+      lastUpdated: new Date().toISOString(),
+      carrier: 'Deccan Freight'
+    },
+    {
+      id: 'SHP-1005',
+      trackingNumber: 'TRK-PNQ-DEL-105',
+      origin: 'Pune',
+      destination: 'Delhi',
+      currentLocation: 'Pune',
+      coordinates: [73.8567, 18.5204],
+      status: 'ON_TRACK',
+      riskLevel: 'LOW',
+      etaMinutes: 720,
+      routePath: ['Pune', 'Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'],
+      originalRoute: ['Pune', 'Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'],
+      currentRoute: ['Pune', 'Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'],
+      delayMinutes: 0,
+      lat: 18.5204,
+      lng: 73.8567,
+      lastUpdated: new Date().toISOString(),
+      carrier: 'Intercity Connect'
     }
   ];
 
   const sampleMetadata: MetadataItem[] = [
     { key: 'lastSyncedAt', value: new Date().toISOString(), lastSyncedAt: new Date().toISOString() },
-    { key: 'dbVersion', value: '2.0.0' }
+    { key: 'dbVersion', value: '3.0.0' }
   ];
 
-  const hubCount = await db.hubs.count();
-  if (hubCount === 0) {
-    await db.hubs.bulkAdd(sampleHubs);
-  } else {
-    // Ensure all 8 Indian hubs exist
-    for (const hub of sampleHubs) {
-      await db.hubs.put(hub);
-    }
-  }
+  // Force sync sample dataset
+  await db.hubs.clear();
+  await db.hubs.bulkAdd(sampleHubs);
 
-  const edgeCount = await db.networkEdges.count();
-  if (edgeCount === 0) {
-    await db.networkEdges.bulkAdd(sampleEdges);
-  }
+  await db.networkEdges.clear();
+  await db.networkEdges.bulkAdd(sampleEdges);
 
-  const shipCount = await db.shipments.count();
-  if (shipCount === 0) {
-    await db.shipments.bulkAdd(sampleShipments);
-  }
+  await db.shipments.clear();
+  await db.shipments.bulkAdd(sampleShipments);
 
-  const metaCount = await db.metadata.count();
-  if (metaCount === 0) {
-    await db.metadata.bulkAdd(sampleMetadata);
-  }
+  await db.metadata.clear();
+  await db.metadata.bulkAdd(sampleMetadata);
 }
