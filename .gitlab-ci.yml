@@ -14,6 +14,7 @@ test-backend:
   stage: test
   script:
     - Write-Host "Running Backend Python Routing Unit Tests..."
+    - $env:PYTHONPATH="."
     - python -m unittest discover -s backend/routing -p "test_*.py"
   rules:
     - changes:
@@ -38,8 +39,11 @@ test-frontend:
 build-backend:
   stage: build
   needs: ["test-backend"]
+  dependencies:
+    - test-backend
   script:
     - Write-Host "Validating Backend Python Modules..."
+    - $env:PYTHONPATH="."
     - python -m py_compile backend/routing/dijkstra.py backend/routing/risk_engine.py
   rules:
     - changes:
@@ -49,6 +53,8 @@ build-backend:
 build-frontend:
   stage: build
   needs: ["test-frontend"]
+  dependencies:
+    - test-frontend
   script:
     - Write-Host "Building React Production Distribution Bundle..."
     - cd frontend
@@ -69,6 +75,8 @@ build-frontend:
 deploy-backend:
   stage: deploy
   needs: ["build-backend"]
+  dependencies:
+    - build-backend
   script:
     - Write-Host "Deploying Backend Lambdas & Infrastructure via Terraform..."
     - cd infrastructure
@@ -83,8 +91,11 @@ deploy-backend:
 deploy-frontend:
   stage: deploy
   needs: ["build-frontend"]
+  dependencies:
+    - build-frontend
   script:
-    - Write-Host "Deploying Frontend Assets to Live S3 Website Bucket..."
+    - Write-Host "Deploying Frontend Assets to AWS S3 Website Bucket..."
+    - if (-not (Test-Path "frontend/dist")) { cd frontend; cmd /c "npm install"; cmd /c "npm run build"; cd .. }
     - aws s3 sync frontend/dist s3://logistics-control-tower-dev-frontend-597289949963 --delete
   rules:
     - changes:
