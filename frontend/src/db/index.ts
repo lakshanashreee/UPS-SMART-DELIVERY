@@ -39,9 +39,9 @@ export async function seedInitialData() {
     { id: 'HUB-BLR', name: 'Bengaluru Hub', city: 'Bengaluru', lat: 12.9716, lng: 77.5946, capacityPercentage: 50, delayMultiplier: 1.0 },
     { id: 'HUB-PUN', name: 'Pune Hub', city: 'Pune', lat: 18.5204, lng: 73.8567, capacityPercentage: 40, delayMultiplier: 1.0 },
     { id: 'HUB-MUM', name: 'Mumbai Logistics Center', city: 'Mumbai', lat: 19.0760, lng: 72.8777, capacityPercentage: 80, delayMultiplier: 1.5 },
-    { id: 'HUB-CHI', name: 'Chicago Central Hub', city: 'Chicago, IL', lat: 41.8781, lng: -87.6298, capacityPercentage: 85, delayMultiplier: 1.8 },
-    { id: 'HUB-IND', name: 'Indianapolis Gateway', city: 'Indianapolis, IN', lat: 39.7684, lng: -86.1581, capacityPercentage: 45, delayMultiplier: 1.0 },
-    { id: 'HUB-CMH', name: 'Columbus Logistics Center', city: 'Columbus, OH', lat: 39.9612, lng: -82.9988, capacityPercentage: 60, delayMultiplier: 1.1 }
+    { id: 'HUB-DEL', name: 'Delhi Central Hub', city: 'Delhi', lat: 28.6139, lng: 77.2090, capacityPercentage: 85, delayMultiplier: 1.8 },
+    { id: 'HUB-CCU', name: 'Kolkata Gateway', city: 'Kolkata', lat: 22.5726, lng: 88.3639, capacityPercentage: 45, delayMultiplier: 1.0 },
+    { id: 'HUB-AMD', name: 'Ahmedabad Logistics Hub', city: 'Ahmedabad', lat: 23.0225, lng: 72.5714, capacityPercentage: 60, delayMultiplier: 1.1 }
   ];
 
   const sampleEdges: NetworkEdgeItem[] = [
@@ -49,7 +49,9 @@ export async function seedInitialData() {
     { id: 'EDGE-HYD-MUM', source: 'Hyderabad', target: 'Mumbai', weight: 360, status: 'CLEAR', delayPenalty: 0 },
     { id: 'EDGE-CHE-BLR', source: 'Chennai', target: 'Bengaluru', weight: 210, status: 'CLEAR', delayPenalty: 0 },
     { id: 'EDGE-BLR-PUN', source: 'Bengaluru', target: 'Pune', weight: 300, status: 'CLEAR', delayPenalty: 0 },
-    { id: 'EDGE-PUN-MUM', source: 'Pune', target: 'Mumbai', weight: 90, status: 'CLEAR', delayPenalty: 0 }
+    { id: 'EDGE-PUN-MUM', source: 'Pune', target: 'Mumbai', weight: 90, status: 'CLEAR', delayPenalty: 0 },
+    { id: 'EDGE-MUM-DEL', source: 'Mumbai', target: 'Delhi', weight: 480, status: 'CLEAR', delayPenalty: 0 },
+    { id: 'EDGE-DEL-CCU', source: 'Delhi', target: 'Kolkata', weight: 540, status: 'CLEAR', delayPenalty: 0 }
   ];
 
   const sampleShipments: Shipment[] = [
@@ -74,22 +76,22 @@ export async function seedInitialData() {
     },
     {
       id: 'SHP-9001',
-      trackingNumber: '1Z999AA10123456784',
-      origin: 'Chicago',
-      destination: 'Columbus',
-      currentLocation: 'Chicago',
-      coordinates: [-87.6298, 41.8781],
+      trackingNumber: 'TRK-DEL-CCU-901',
+      origin: 'Delhi',
+      destination: 'Kolkata',
+      currentLocation: 'Delhi',
+      coordinates: [77.2090, 28.6139],
       status: 'AT_RISK',
       riskLevel: 'HIGH',
-      etaMinutes: 240,
-      routePath: ['Chicago', 'Indianapolis', 'Columbus'],
-      originalRoute: ['Chicago', 'Indianapolis', 'Columbus'],
-      currentRoute: ['Chicago', 'Indianapolis', 'Columbus'],
+      etaMinutes: 540,
+      routePath: ['Delhi', 'Kolkata'],
+      originalRoute: ['Delhi', 'Kolkata'],
+      currentRoute: ['Delhi', 'Kolkata'],
       delayMinutes: 45,
-      lat: 41.8781,
-      lng: -87.6298,
+      lat: 28.6139,
+      lng: 77.2090,
       lastUpdated: new Date().toISOString(),
-      carrier: 'Midwest Intermodal'
+      carrier: 'North-East Express'
     }
   ];
 
