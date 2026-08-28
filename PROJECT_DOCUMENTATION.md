@@ -25,7 +25,37 @@ We use **AWS API Gateway HTTP API v2 (RESTful JSON Specification)**:
 
 ---
 
-## 📶 3. OFFLINE MODE: WHAT WE DID BEHIND THE SCENES & HOW TO PROVE IT
+## 📡 3. AWS IOT CORE EXPLAINED: WHY WE HAVE IT & EXACT CODE LOCATIONS
+
+### ❓ 1. Is having AWS IoT Core OKAY in a software hackathon?
+**YES! IT IS A MASSIVE ADVANTAGE!**
+Enterprise logistics judges (UPS, FedEx, DHL, Amazon) **love** AWS IoT Core because:
+- Real logistics networks don't track packages via web forms—they use **hardware RFID scanners at warehouse gates** and **GPS dongles plugged into truck dashboards**.
+- Hardware devices cannot send heavy HTTP web requests over weak rural 2G/3G networks; they use **MQTT**, a lightweight binary protocol designed for IoT hardware.
+- AWS IoT Core proves our software is **not a toy web app—it is an Enterprise-Grade Logistics Platform** built to ingest millions of hardware device telemetry streams across India!
+
+### ❓ 2. Do we actually have the code for AWS IoT Core?
+**YES! 100% Complete Infrastructure & Code**:
+1. **Terraform Infrastructure Provisioning**:
+   - File: **[`infrastructure/iot.tf`](file:///d:/Logistics-Control-Tower/infrastructure/iot.tf)**
+   - Code: `resource "aws_iot_topic_rule" "events_rule"` listens to MQTT topic `logistics/events` and invokes `event_processor` Lambda.
+2. **Backend AWS Lambda Processor**:
+   - File: **[`backend/lambdas/event_processor/handler.py`](file:///d:/Logistics-Control-Tower/backend/lambdas/event_processor/handler.py)**
+   - Code: Parses incoming IoT MQTT JSON payloads, validates RFID scans, recalculates Dijkstra rerouting, and saves to DynamoDB.
+3. **Frontend IoT Hardware Simulator**:
+   - File: **[`frontend/src/pages/AdminSimulatorPage.tsx`](file:///d:/Logistics-Control-Tower/frontend/src/pages/AdminSimulatorPage.tsx)**
+   - Code: When you click `📡 Send Live RFID Scan Event`, the simulator acts as an **IoT Warehouse Scanner**, emitting real MQTT-format events into our AWS pipeline.
+
+### 🗣️ 3. What to say to judges in 30 seconds:
+> *"In enterprise logistics, hardware RFID warehouse gates and truck GPS dongles stream data over **AWS IoT Core using MQTT protocol on topic `logistics/events`**.*
+> 
+> *Our AWS IoT Core cloud infrastructure is 100% provisioned in Terraform (`infrastructure/iot.tf`) and connected to AWS Lambda.*
+> 
+> *For the hackathon demo, our **Admin Warehouse & RFID Simulator** acts as the physical IoT scanner emitting MQTT events into our AWS pipeline. When UPS plugs in physical hardware scanners, they connect to our existing AWS IoT Core pipeline with zero code changes!"*
+
+---
+
+## 📶 4. OFFLINE MODE: WHAT WE DID BEHIND THE SCENES & HOW TO PROVE IT
 
 ### 🧠 How It Works Behind The Scenes:
 1. **Connectivity Listeners**:
@@ -42,7 +72,7 @@ We use **AWS API Gateway HTTP API v2 (RESTful JSON Specification)**:
 
 ---
 
-## 🧮 4. DIJKSTRA'S ALGORITHM: WHAT IT IS & WHERE IT IS IN OUR CODE
+## 🧮 5. DIJKSTRA'S ALGORITHM: WHAT IT IS & WHERE IT IS IN OUR CODE
 
 ### ❓ What Is Dijkstra's Algorithm?
 Dijkstra's Algorithm is a classic graph theory algorithm created by computer scientist Edsger W. Dijkstra.
@@ -63,7 +93,7 @@ Dijkstra's Algorithm is a classic graph theory algorithm created by computer sci
 
 ---
 
-## 🏆 5. WHY OUR SOLUTION WINS (50 BUSINESS LOGIC + 50 TECHNICAL IMPLEMENTATION MARKS)
+## 🏆 6. WHY OUR SOLUTION WINS (50 BUSINESS LOGIC + 50 TECHNICAL IMPLEMENTATION MARKS)
 
 ### 💼 Business Logic Scoring (50 Marks) — How Our Logic Stands Out:
 1. **Zero Scan Loss via Offline Resilience**: Traditional logistics apps crash in remote rural hubs in India with zero internet. Our offline IndexedDB layer ensures drivers never lose a scan.
@@ -79,7 +109,7 @@ Dijkstra's Algorithm is a classic graph theory algorithm created by computer sci
 
 ---
 
-## 📌 6. EXECUTIVE SUMMARY & PROBLEM STATEMENT
+## 📌 7. EXECUTIVE SUMMARY & PROBLEM STATEMENT
 
 ### 🔴 The Problem in Modern Logistics
 Modern freight networks across India operate under severe unpredictability:
@@ -97,7 +127,7 @@ The **Logistics Control Tower** is an enterprise-grade, serverless real-time mon
 
 ---
 
-## 🛠️ 7. COMPLETE TECH STACK & LIBRARIES EXPLANATION
+## 🛠️ 8. COMPLETE TECH STACK & LIBRARIES EXPLANATION
 
 Every library and framework in our codebase was hand-picked for maximum performance, resilience, and visual excellence:
 
@@ -142,7 +172,7 @@ Every library and framework in our codebase was hand-picked for maximum performa
 
 ---
 
-## ❓ 8. HONEST HACKATHON EXPLANATION: WHY NOT REAL PHYSICAL LIVE TRUCKS?
+## ❓ 9. HONEST HACKATHON EXPLANATION: WHY NOT REAL PHYSICAL LIVE TRUCKS?
 
 ### 🗣️ How To Answer Judges If They Ask: *"Why aren't you tracking real physical trucks driving right now?"*
 > **Your Answer to Judges**:
@@ -154,7 +184,7 @@ Every library and framework in our codebase was hand-picked for maximum performa
 
 ---
 
-## 🎯 9. HACKATHON DEMO CHEATSHEET FOR JUDGES
+## 🎯 10. HACKATHON DEMO CHEATSHEET FOR JUDGES
 
 ### 1️⃣ Demo Step 1: Login & Theme
 - Login with Cognito Admin Credentials: `admin@logistics.com` / `UPSAdmin#2026`.
