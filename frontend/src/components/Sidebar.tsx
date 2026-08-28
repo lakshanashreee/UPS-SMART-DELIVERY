@@ -90,7 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
 
         <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium px-1">
           <span className="flex items-center gap-1 text-emerald-600 font-semibold">
-            <ShieldCheck className="w-3.5 h-3.5" /> Cognito Auth
+            <ShieldCheck className="w-3.5 h-3.5" /> Secured
           </span>
           <span>AWS us-east-1</span>
         </div>
