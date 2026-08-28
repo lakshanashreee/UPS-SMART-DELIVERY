@@ -7,6 +7,7 @@ export interface LiveCityTelematics {
   tempC: number;
   windSpeedKmH: number;
   weatherCode: number;
+  weatherText: string;
   condition: 'CLEAR' | 'CONGESTED' | 'STORM' | 'RAIN';
   delayPenaltyMins: number;
 }
@@ -23,6 +24,16 @@ const INDIAN_CITIES = [
   { city: 'Pune', lat: 18.5204, lng: 73.8567 },
   { city: 'Visakhapatnam', lat: 17.6868, lng: 83.2185 }
 ];
+
+function getWeatherText(code: number): string {
+  if (code === 0) return 'Sunny / Clear Sky ☀️';
+  if (code <= 3) return 'Partly Cloudy ⛅';
+  if (code <= 48) return 'Foggy / Hazy 🌫️';
+  if (code <= 65) return 'Moderate Rain 🌧️';
+  if (code <= 82) return 'Heavy Rain ⛈️';
+  if (code >= 95) return 'Thunderstorm 🌩️';
+  return 'Clear Sky ☀️';
+}
 
 export async function fetchLiveCityTrafficData(): Promise<Record<string, LiveCityTelematics>> {
   const results: Record<string, LiveCityTelematics> = {};
@@ -44,6 +55,7 @@ export async function fetchLiveCityTrafficData(): Promise<Record<string, LiveCit
       const wind = weather?.windspeed || 12;
       const code = weather?.weathercode || 0;
       const temp = weather?.temperature || 28;
+      const weatherText = getWeatherText(code);
 
       let condition: LiveCityTelematics['condition'] = 'CLEAR';
       let delayPenaltyMins = 0;
@@ -66,6 +78,7 @@ export async function fetchLiveCityTrafficData(): Promise<Record<string, LiveCit
         tempC: temp,
         windSpeedKmH: wind,
         weatherCode: code,
+        weatherText,
         condition,
         delayPenaltyMins
       };
@@ -80,6 +93,7 @@ export async function fetchLiveCityTrafficData(): Promise<Record<string, LiveCit
         tempC: 30,
         windSpeedKmH: 12,
         weatherCode: 0,
+        weatherText: 'Clear Sky ☀️',
         condition: cityObj.city === 'Hyderabad' ? 'CONGESTED' : 'CLEAR',
         delayPenaltyMins: cityObj.city === 'Hyderabad' ? 120 : 0
       };

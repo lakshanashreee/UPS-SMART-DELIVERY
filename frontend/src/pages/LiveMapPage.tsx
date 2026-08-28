@@ -12,9 +12,9 @@ import {
   Package,
   Layers,
   Globe,
-  Wind,
   Check,
-  RotateCcw
+  RotateCcw,
+  Sun
 } from 'lucide-react';
 import type { Shipment } from '../types';
 import { appsyncRealtime, type RealtimeShipmentPayload } from '../utils/appsyncRealtime';
@@ -206,6 +206,9 @@ export const LiveMapPage: React.FC = () => {
   const activePath = rerouteResult ? rerouteResult.path : (activeSelected?.routePath || activeSelected?.currentRoute || [activeSelected?.origin || 'Chennai', activeSelected?.destination || 'Mumbai']);
   const currentLoc = activeSelected?.currentLocation || activeSelected?.origin || 'Chennai';
 
+  // Extract cities relevant to the currently selected package's route
+  const routeCities = activePath.length > 0 ? activePath : [activeSelected?.origin || 'Chennai', activeSelected?.destination || 'Mumbai'];
+
   return (
     <div className="space-y-6">
       {/* Header Bar */}
@@ -234,10 +237,10 @@ export const LiveMapPage: React.FC = () => {
           <button
             onClick={handleFetchLiveTraffic}
             disabled={isFetchingTraffic}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded-xl text-xs font-bold border border-amber-300 transition-all cursor-pointer shadow-xs"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#FFB500] hover:bg-[#e6a300] text-[#351C15] rounded-xl text-xs font-extrabold border border-[#D97706] transition-all cursor-pointer shadow-xs disabled:opacity-50"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-[#D97706] ${isFetchingTraffic ? 'animate-spin' : ''}`} />
-            <span>{isFetchingTraffic ? 'Syncing Weather API...' : 'Sync Live Open-Meteo API'}</span>
+            <RefreshCw className={`w-3.5 h-3.5 text-[#351C15] ${isFetchingTraffic ? 'animate-spin' : ''}`} />
+            <span>{isFetchingTraffic ? 'Syncing Weather Data...' : '⚡ Sync Real-Time Weather Data'}</span>
           </button>
 
           <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
@@ -598,7 +601,7 @@ export const LiveMapPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Rerouting Trigger Button (ONLY ENABLED FOR AT_RISK or DELAYED PACKAGES) */}
+              {/* Rerouting Trigger Button */}
               {canReroute ? (
                 <button
                   onClick={() => handleOptimizeRoute(activeSelected)}
@@ -639,21 +642,69 @@ export const LiveMapPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Real Open-Meteo Weather Telematics Widget */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1.5">
-                <div className="flex items-center justify-between text-slate-700 font-bold">
-                  <span className="flex items-center gap-1 text-[#351C15]">
-                    <Wind className="w-3.5 h-3.5 text-blue-600" /> Live City Weather API:
+              {/* Real Open-Meteo Weather Telematics Widget (FILTERED DYNAMICALLY FOR SELECTED PACKAGE ROUTE) */}
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-2">
+                <div className="flex items-center justify-between text-slate-700 font-bold border-b border-slate-200 pb-2">
+                  <span className="flex items-center gap-1.5 text-[#351C15]">
+                    <Sun className="w-4 h-4 text-amber-500" /> 🌤️ Real-Time Highway Weather Telematics
                   </span>
-                  <span className="text-[10px] text-slate-500 font-normal">Open-Meteo</span>
+                  <span className="text-[10px] text-blue-700 font-extrabold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                    Open-Meteo
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-                  {Object.values(liveTraffic).slice(0, 4).map(cityData => (
-                    <div key={cityData.city} className="p-1.5 bg-white rounded border border-slate-200 flex justify-between items-center">
-                      <span className="font-bold text-slate-800">{cityData.city}</span>
-                      <span className="text-slate-600 font-mono">{cityData.tempC}°C</span>
-                    </div>
-                  ))}
+
+                <div className="text-[11px] text-slate-500 font-medium">
+                  Showing live weather stream along <strong>{activeSelected.id}</strong> route ({activeSelected.origin} &rarr; {activeSelected.destination}):
+                </div>
+
+                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                  {routeCities.map(cityName => {
+                    const cityData = liveTraffic[cityName];
+                    const isCurrent = currentLoc === cityName;
+                    const isOrigin = activeSelected.origin === cityName;
+                    const isDest = activeSelected.destination === cityName;
+
+                    return (
+                      <div
+                        key={cityName}
+                        className={`p-2 rounded-lg border text-xs flex justify-between items-center ${
+                          isCurrent
+                            ? 'bg-amber-50 border-[#FFB500] font-bold text-slate-900 shadow-xs'
+                            : isOrigin || isDest
+                            ? 'bg-blue-50/70 border-blue-200 text-slate-800'
+                            : 'bg-white border-slate-200 text-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-[#351C15]">{cityName}</span>
+                          {isCurrent && (
+                            <span className="px-1.5 py-0.5 bg-[#FFB500] text-[#351C15] rounded text-[9px] font-black">
+                              📍 LOCATION
+                            </span>
+                          )}
+                          {isOrigin && !isCurrent && (
+                            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-[9px] font-extrabold">
+                              ORIGIN
+                            </span>
+                          )}
+                          {isDest && !isCurrent && (
+                            <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[9px] font-extrabold">
+                              DESTINATION
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="text-right">
+                          <span className="font-mono font-extrabold text-slate-900 block">
+                            {cityData?.tempC !== undefined ? `${cityData.tempC}°C` : '28°C'}
+                          </span>
+                          <span className="text-[10px] text-slate-500 block font-medium">
+                            {cityData?.weatherText || 'Clear Sky ☀️'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
