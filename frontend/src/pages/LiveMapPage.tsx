@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { 
@@ -8,7 +8,6 @@ import {
   RefreshCw,
   Navigation,
   Activity,
-  AlertTriangle,
   Radio
 } from 'lucide-react';
 import type { Shipment } from '../types';
@@ -17,7 +16,6 @@ import { appsyncRealtime, type RealtimeShipmentPayload } from '../utils/appsyncR
 export const LiveMapPage: React.FC = () => {
   const shipments = useLiveQuery(() => db.shipments.toArray(), [], []);
   const hubs = useLiveQuery(() => db.hubs.toArray(), [], []);
-  const networkEdges = useLiveQuery(() => db.networkEdges.toArray(), [], []);
   
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [rerouting, setRerouting] = useState<boolean>(false);

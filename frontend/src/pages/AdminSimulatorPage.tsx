@@ -55,6 +55,17 @@ export const AdminSimulatorPage: React.FC = () => {
     const timestamp = new Date().toISOString();
     const logs: string[] = [];
 
+    const payload = {
+      eventId,
+      shipmentId: selectedShipmentId,
+      eventType,
+      hub: selectedHub,
+      delayMinutes: ['CONGESTION', 'WEATHER_DELAY', 'HUB_DELAY'].includes(eventType) ? delayMinutesInput : 0,
+      latitude,
+      longitude,
+      timestamp
+    };
+
     const isEffectiveOnline = syncManager.getEffectiveOnlineStatus();
 
     if (!isEffectiveOnline) {
@@ -73,17 +84,6 @@ export const AdminSimulatorPage: React.FC = () => {
     logs.push(`[1/9] API Gateway received POST /admin/simulate-event for ${selectedShipmentId}`);
     logs.push(`[2/9] Legacy Simulator Lambda publishing MQTT payload to AWS IoT Core (logistics/events)...`);
 
-    const payload = {
-      eventId,
-      shipmentId: selectedShipmentId,
-      eventType,
-      hub: selectedHub,
-      delayMinutes: ['CONGESTION', 'WEATHER_DELAY', 'HUB_DELAY'].includes(eventType) ? delayMinutesInput : 0,
-      latitude,
-      longitude,
-      timestamp
-    };
-
     logs.push(`[3/9] IoT Rule matched topic 'logistics/events' → Invoking Event Processor Lambda`);
     logs.push(`[4/9] Event Processor validated event and saved to DynamoDB logistics_events table`);
 
@@ -100,6 +100,7 @@ export const AdminSimulatorPage: React.FC = () => {
         status: 'ON_TRACK',
         riskLevel: 'LOW',
         etaMinutes: 720,
+        delayMinutes: 0,
         routePath: ['Chennai', 'Hyderabad', 'Mumbai'],
         lastUpdated: timestamp,
         carrier: 'Express Logistics'

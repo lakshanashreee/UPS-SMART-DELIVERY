@@ -111,7 +111,7 @@ export const ShipmentsPage: React.FC = () => {
                     {shipment.delayMinutes > 0 ? `+${shipment.delayMinutes}m` : '0m'}
                   </td>
                   <td className="p-3.5 text-slate-400 font-mono">
-                    {new Date(shipment.eta).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(shipment.eta || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </td>
                 </tr>
               ))}
