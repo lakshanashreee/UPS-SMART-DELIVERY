@@ -28,10 +28,25 @@ export class LogisticsDatabase extends Dexie {
 
 export const db = new LogisticsDatabase();
 
-// Seed initial mockup data if database is fresh
+// Seed pure Indian Logistics Hubs and purge any legacy US hubs
 export async function seedInitialData() {
-  const count = await db.shipments.count();
-  if (count > 0) return;
+  // Purge legacy US hubs if present in local browser database
+  await db.hubs.where('id').anyOf(['HUB-CHI', 'HUB-CMH', 'HUB-IND']).delete();
+  await db.hubs.where('city').anyOf(['Chicago', 'Columbus', 'Indianapolis']).delete();
+  
+  // Clean old US shipments if present
+  const oldUsShipment = await db.shipments.get('SHP-9001');
+  if (oldUsShipment && (oldUsShipment.origin === 'Chicago' || oldUsShipment.destination === 'Columbus')) {
+    await db.shipments.update('SHP-9001', {
+      origin: 'Delhi',
+      destination: 'Kolkata',
+      currentLocation: 'Delhi',
+      coordinates: [77.2090, 28.6139],
+      lat: 28.6139,
+      lng: 77.2090,
+      trackingNumber: 'TRK-DEL-CCU-901'
+    });
+  }
 
   const sampleHubs: HubNode[] = [
     { id: 'HUB-CHE', name: 'Chennai Hub', city: 'Chennai', lat: 13.0827, lng: 80.2707, capacityPercentage: 60, delayMultiplier: 1.0 },
@@ -100,8 +115,28 @@ export async function seedInitialData() {
     { key: 'dbVersion', value: '2.0.0' }
   ];
 
-  await db.hubs.bulkAdd(sampleHubs);
-  await db.networkEdges.bulkAdd(sampleEdges);
-  await db.shipments.bulkAdd(sampleShipments);
-  await db.metadata.bulkAdd(sampleMetadata);
+  const hubCount = await db.hubs.count();
+  if (hubCount === 0) {
+    await db.hubs.bulkAdd(sampleHubs);
+  } else {
+    // Ensure all 8 Indian hubs exist
+    for (const hub of sampleHubs) {
+      await db.hubs.put(hub);
+    }
+  }
+
+  const edgeCount = await db.networkEdges.count();
+  if (edgeCount === 0) {
+    await db.networkEdges.bulkAdd(sampleEdges);
+  }
+
+  const shipCount = await db.shipments.count();
+  if (shipCount === 0) {
+    await db.shipments.bulkAdd(sampleShipments);
+  }
+
+  const metaCount = await db.metadata.count();
+  if (metaCount === 0) {
+    await db.metadata.bulkAdd(sampleMetadata);
+  }
 }
