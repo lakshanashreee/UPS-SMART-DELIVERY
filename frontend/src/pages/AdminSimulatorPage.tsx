@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { Cpu, Send, Radio, History, CheckCircle, ShieldCheck, AlertTriangle } from 'lucide-react';
-import type { Shipment } from '../types';
 import { syncManager } from '../utils/syncManager';
 import { useAuth } from '../context/AuthContext';
 
@@ -47,7 +46,7 @@ export const AdminSimulatorPage: React.FC = () => {
 
   const handleEmitEvent = async () => {
     if (!isAdminRole) {
-      alert('Access Denied: Only ADMIN group users can emit legacy system simulator events.');
+      alert('Access Denied: Only Admin users can emit simulator events.');
       return;
     }
 
@@ -70,47 +69,26 @@ export const AdminSimulatorPage: React.FC = () => {
     const isEffectiveOnline = syncManager.getEffectiveOnlineStatus();
 
     if (!isEffectiveOnline) {
-      logs.push(`[OFFLINE DETECTED] Enqueueing event into Dexie.js (IndexedDB) pendingSync table...`);
+      logs.push(`[OFFLINE MODE ACTIVE] Internet disconnected!`);
       const queuedItem = await syncManager.queueEvent(eventType, payload);
-      logs.push(`[1/3] Queued event [${eventId}] with status PENDING in IndexedDB`);
+      logs.push(`[1/3] Saved event [${eventId}] into browser offline database (IndexedDB)`);
       logs.push(`[2/3] Idempotency Key registered: ${queuedItem.idempotencyKey}`);
-      logs.push(`[3/3] Event queued safely. Will automatically sync when online connection returns.`);
+      logs.push(`[3/3] Event queued safely. Will automatically sync to AWS when internet returns!`);
       
       setPipelineLogs(logs);
-      setLastEmittedMsg(`Queued offline event [${eventId}]. Pending sync count updated.`);
+      setLastEmittedMsg(`Queued offline event [${eventId}]. Pending sync queue updated.`);
       setIsSubmitting(false);
       return;
     }
 
-    logs.push(`[1/9] API Gateway received POST /admin/simulate-event for ${selectedShipmentId}`);
-    logs.push(`[2/9] Legacy Simulator Lambda publishing MQTT payload to AWS IoT Core (logistics/events)...`);
-
-    logs.push(`[3/9] IoT Rule matched topic 'logistics/events' → Invoking Event Processor Lambda`);
-    logs.push(`[4/9] Event Processor validated event and saved to DynamoDB logistics_events table`);
+    logs.push(`[1/6] Scanning RFID tag for ${selectedShipmentId} at ${selectedHub}...`);
+    logs.push(`[2/6] Publishing event stream to AWS Cloud IoT Core (logistics/events)...`);
+    logs.push(`[3/6] AWS Event Processor validated payload and saved to DynamoDB`);
 
     let targetShipment = await db.shipments.get(selectedShipmentId);
-    if (!targetShipment && selectedShipmentId === 'SHIP-001') {
-      const defaultShip001: Shipment = {
-        id: 'SHIP-001',
-        trackingNumber: 'TRK-CHE-MUM-001',
-        origin: 'Chennai',
-        destination: 'Mumbai',
-        currentLocation: 'Chennai',
-        coordinates: [80.2707, 13.0827],
-        status: 'ON_TRACK',
-        riskLevel: 'LOW',
-        etaMinutes: 720,
-        delayMinutes: 0,
-        routePath: ['Chennai', 'Hyderabad', 'Mumbai'],
-        lastUpdated: timestamp,
-        carrier: 'Express Freight Corp'
-      };
-      await db.shipments.add(defaultShip001);
-      targetShipment = defaultShip001;
-    }
 
     if (['LOCATION_UPDATE', 'ARRIVED', 'DEPARTED'].includes(eventType)) {
-      logs.push(`[5/9] Updated shipment location: ${selectedHub} [Lat: ${latitude}, Lng: ${longitude}]`);
+      logs.push(`[4/6] Updated shipment location: ${selectedHub}`);
       if (targetShipment) {
         await db.shipments.update(selectedShipmentId, {
           currentLocation: selectedHub,
@@ -121,22 +99,21 @@ export const AdminSimulatorPage: React.FC = () => {
     }
 
     if (['CONGESTION', 'WEATHER_DELAY', 'HUB_DELAY'].includes(eventType)) {
-      logs.push(`[5/9] Updated network edge condition for ${selectedHub}: +${delayMinutesInput} mins delay penalty`);
-      logs.push(`[6/9] Dijkstra recalculating optimal route avoiding congested edge ${selectedHub}...`);
+      logs.push(`[4/6] Traffic delay detected at ${selectedHub}: +${delayMinutesInput} mins delay penalty`);
+      logs.push(`[5/6] Smart Routing recalculates optimal route bypassing bottleneck...`);
       
-      const newPath = ['Chennai', 'Bengaluru', 'Pune', 'Mumbai'];
-      const newEta = (targetShipment?.etaMinutes || 720) + delayMinutesInput;
+      const newPath = selectedShipmentId === 'SHP-9001' 
+        ? ['Delhi', 'Jaipur', 'Visakhapatnam', 'Kolkata'] 
+        : ['Chennai', 'Bengaluru', 'Pune', 'Mumbai'];
+
       const newRisk = delayMinutesInput > 120 ? 'HIGH' : 'MEDIUM';
       const newStatus = delayMinutesInput > 120 ? 'AT_RISK' : 'DELAYED';
 
-      logs.push(`[7/9] Dijkstra Recalculated Route: ${newPath.join(' → ')}`);
-      logs.push(`[8/9] ETA updated to +${newEta} mins | Risk status changed to ${newRisk} (${newStatus})`);
-      logs.push(`[9/9] Saved updated shipment to DynamoDB logistics_shipments table & dispatched realtime push`);
+      logs.push(`[6/6] Optimized Bypass Route: ${newPath.join(' → ')} | Status: ${newStatus}`);
 
       if (targetShipment) {
         await db.shipments.update(selectedShipmentId, {
           routePath: newPath,
-          etaMinutes: newEta,
           riskLevel: newRisk,
           status: newStatus,
           delayMinutes: delayMinutesInput,
@@ -167,10 +144,10 @@ export const AdminSimulatorPage: React.FC = () => {
         <div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-[#351C15] tracking-tight flex items-center gap-2">
             <Cpu className="w-6 h-6 text-[#D97706]" />
-            Admin Legacy Feed Simulator
+            Warehouse & RFID Scanner Simulator
           </h2>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            Simulate RFID scanner telematics via API Gateway $\rightarrow$ Lambda $\rightarrow$ AWS IoT Core
+            Simulate warehouse RFID scans and highway delay alerts. Test how the Control Tower processes events live!
           </p>
         </div>
 
@@ -191,12 +168,12 @@ export const AdminSimulatorPage: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
           <h3 className="font-extrabold text-base text-[#351C15] flex items-center gap-2 border-b border-slate-100 pb-3">
             <Radio className="w-5 h-5 text-[#D97706] animate-pulse" />
-            Simulate Legacy RFID Event
+            Simulate RFID Scanner Event
           </h3>
 
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-bold text-slate-600">Target Shipment:</label>
+              <label className="text-xs font-bold text-slate-600">Target Package:</label>
               <select
                 value={selectedShipmentId}
                 onChange={e => setSelectedShipmentId(e.target.value)}
@@ -218,12 +195,12 @@ export const AdminSimulatorPage: React.FC = () => {
                 onChange={e => setEventType(e.target.value as any)}
                 className="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-[#FFB500]"
               >
-                <option value="CONGESTION">CONGESTION (Traffic Bottleneck)</option>
-                <option value="LOCATION_UPDATE">LOCATION_UPDATE (GPS Telemetry Checkpoint)</option>
-                <option value="ARRIVED">ARRIVED (Hub Check-In)</option>
-                <option value="DEPARTED">DEPARTED (Hub Departure)</option>
-                <option value="WEATHER_DELAY">WEATHER_DELAY (Severe Weather)</option>
+                <option value="CONGESTION">CONGESTION (Traffic Bottleneck Alert)</option>
+                <option value="WEATHER_DELAY">WEATHER_DELAY (Severe Storm Alert)</option>
                 <option value="HUB_DELAY">HUB_DELAY (Warehouse Bottleneck)</option>
+                <option value="ARRIVED">ARRIVED (Warehouse Check-In Scan)</option>
+                <option value="DEPARTED">DEPARTED (Warehouse Departure Scan)</option>
+                <option value="LOCATION_UPDATE">LOCATION_UPDATE (Highway GPS Checkpoint)</option>
               </select>
             </div>
 
@@ -280,20 +257,20 @@ export const AdminSimulatorPage: React.FC = () => {
             <button
               onClick={handleEmitEvent}
               disabled={isSubmitting || !isAdminRole}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 font-extrabold text-xs rounded-xl transition-all cursor-pointer mt-2 border border-[#D97706] ${
+              className={`w-full flex items-center justify-center gap-2 py-3 px-4 font-extrabold text-xs rounded-xl transition-all cursor-pointer mt-2 border border-[#D97706] ${
                 isAdminRole
                   ? 'bg-[#FFB500] hover:bg-[#e6a300] text-[#351C15] shadow-xs'
                   : 'bg-slate-200 text-slate-500 cursor-not-allowed border-slate-300'
               }`}
             >
               <Send className="w-4 h-4" />
-              <span>SEND EVENT (Publish to AWS IoT Core)</span>
+              <span>📡 Send Live RFID Scan Event</span>
             </button>
 
             {!isAdminRole && (
               <div className="p-3 bg-amber-50 border border-amber-300 text-amber-900 text-xs rounded-xl flex items-center gap-2 font-medium">
                 <AlertTriangle className="w-4 h-4 text-[#D97706]" />
-                <span>Only ADMIN group users can emit simulator events.</span>
+                <span>Only ADMIN users can emit simulator events.</span>
               </div>
             )}
           </div>
@@ -303,7 +280,7 @@ export const AdminSimulatorPage: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
           <h3 className="font-extrabold text-base text-[#351C15] flex items-center gap-2 border-b border-slate-100 pb-3">
             <History className="w-5 h-5 text-[#D97706]" />
-            End-to-End Processing Verification
+            Live Processing Log Output
           </h3>
 
           {lastEmittedMsg && (
@@ -322,13 +299,13 @@ export const AdminSimulatorPage: React.FC = () => {
 
             {pipelineLogs.length === 0 && (
               <p className="text-slate-400 italic text-center py-8 font-sans">
-                Select parameters above and click "SEND EVENT" to observe the 9-step API Gateway $\rightarrow$ IoT Core $\rightarrow$ Dijkstra Rerouting pipeline.
+                Select parameters above and click "Send Live RFID Scan Event" to observe real-time cloud event processing.
               </p>
             )}
           </div>
 
           <div className="border-t border-slate-100 pt-3">
-            <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Ingested Scan Log History</h4>
+            <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Recent Ingested Scan History</h4>
             <div className="space-y-1 max-h-[140px] overflow-y-auto">
               {scanLogs?.map(evt => (
                 <div key={evt.id} className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] flex justify-between items-center font-mono">
