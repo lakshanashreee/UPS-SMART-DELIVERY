@@ -13,7 +13,7 @@ export const AdminSimulatorPage: React.FC = () => {
 
   // Form State
   const [selectedShipmentId, setSelectedShipmentId] = useState<string>('SHIP-001');
-  const [eventType, setEventType] = useState<'LOCATION_UPDATE' | 'ARRIVED' | 'DEPARTED' | 'CONGESTION' | 'WEATHER_DELAY' | 'HUB_DELAY'>('CONGESTION');
+  const [eventType, setEventType] = useState<'LOCATION_UPDATE' | 'ARRIVED' | 'DEPARTED' | 'CONGESTION' | 'WEATHER_DELAY' | 'HUB_DELAY'>('ARRIVED');
   const [selectedHub, setSelectedHub] = useState<string>('Hyderabad');
   const [delayMinutesInput, setDelayMinutesInput] = useState<number>(180);
   const [latitude, setLatitude] = useState<number>(17.3850);
@@ -56,6 +56,15 @@ export const AdminSimulatorPage: React.FC = () => {
     const timestamp = new Date().toISOString();
     const logs: string[] = [];
 
+    let targetShipment = await db.shipments.get(selectedShipmentId);
+
+    // Prevent modifying DELIVERED packages
+    if (targetShipment && targetShipment.status === 'DELIVERED') {
+      alert(`Package ${selectedShipmentId} has already arrived at its destination and is marked DELIVERED. Status cannot be modified.`);
+      setIsSubmitting(false);
+      return;
+    }
+
     const payload = {
       eventId,
       shipmentId: selectedShipmentId,
@@ -86,19 +95,31 @@ export const AdminSimulatorPage: React.FC = () => {
     logs.push(`[2/6] Publishing event stream to AWS Cloud IoT Core (logistics/events)...`);
     logs.push(`[3/6] AWS Event Processor validated payload and saved to DynamoDB`);
 
-    let targetShipment = await db.shipments.get(selectedShipmentId);
-
+    // Handle ARRIVED, DEPARTED, and LOCATION_UPDATE (Clears AT_RISK status & updates location!)
     if (['LOCATION_UPDATE', 'ARRIVED', 'DEPARTED'].includes(eventType)) {
-      logs.push(`[4/6] Updated shipment location: ${selectedHub}`);
+      const isDestination = targetShipment && (targetShipment.destination === selectedHub);
+      const newStatus = isDestination ? 'DELIVERED' : 'ON_TRACK';
+      const newRisk = 'LOW';
+
+      if (isDestination) {
+        logs.push(`[4/6] Package ARRIVED at final destination ${selectedHub}! Status updated to DELIVERED.`);
+      } else {
+        logs.push(`[4/6] Check-in scan at ${selectedHub}. Status cleared from AT_RISK → ON_TRACK (0 delay).`);
+      }
+
       if (targetShipment) {
         await db.shipments.update(selectedShipmentId, {
           currentLocation: selectedHub,
           coordinates: [longitude, latitude],
+          status: newStatus as any,
+          riskLevel: newRisk as any,
+          delayMinutes: 0,
           lastUpdated: timestamp
         });
       }
     }
 
+    // Handle Delay Events (CONGESTION, WEATHER_DELAY, HUB_DELAY)
     if (['CONGESTION', 'WEATHER_DELAY', 'HUB_DELAY'].includes(eventType)) {
       logs.push(`[4/6] Traffic delay detected at ${selectedHub}: +${delayMinutesInput} mins delay penalty`);
       logs.push(`[5/6] Smart Routing recalculates optimal route bypassing bottleneck...`);
@@ -183,7 +204,7 @@ export const AdminSimulatorPage: React.FC = () => {
                 <option value="SHIP-001">SHIP-001 (Chennai → Mumbai)</option>
                 {shipments?.filter(s => s.id !== 'SHIP-001').map(s => (
                   <option key={s.id} value={s.id}>
-                    {s.trackingNumber} ({s.id})
+                    {s.trackingNumber} ({s.id}) - [{s.status}]
                   </option>
                 ))}
               </select>
@@ -196,12 +217,12 @@ export const AdminSimulatorPage: React.FC = () => {
                 onChange={e => setEventType(e.target.value as any)}
                 className="w-full mt-1 bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-[#FFB500]"
               >
+                <option value="ARRIVED">ARRIVED (Warehouse Check-In Scan - Clears Risk!)</option>
+                <option value="DEPARTED">DEPARTED (Warehouse Departure Scan)</option>
+                <option value="LOCATION_UPDATE">LOCATION_UPDATE (Highway GPS Checkpoint)</option>
                 <option value="CONGESTION">CONGESTION (Traffic Bottleneck Alert)</option>
                 <option value="WEATHER_DELAY">WEATHER_DELAY (Severe Storm Alert)</option>
                 <option value="HUB_DELAY">HUB_DELAY (Warehouse Bottleneck)</option>
-                <option value="ARRIVED">ARRIVED (Warehouse Check-In Scan)</option>
-                <option value="DEPARTED">DEPARTED (Warehouse Departure Scan)</option>
-                <option value="LOCATION_UPDATE">LOCATION_UPDATE (Highway GPS Checkpoint)</option>
               </select>
             </div>
 
