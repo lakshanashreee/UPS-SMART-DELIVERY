@@ -25,7 +25,61 @@ We use **AWS API Gateway HTTP API v2 (RESTful JSON Specification)**:
 
 ---
 
-## 📌 1. EXECUTIVE SUMMARY & PROBLEM STATEMENT
+## 📶 3. OFFLINE MODE: WHAT WE DID BEHIND THE SCENES & HOW TO PROVE IT
+
+### 🧠 How It Works Behind The Scenes:
+1. **Connectivity Listeners**:
+   In `frontend/src/utils/syncManager.ts`, we register event listeners on `window.addEventListener('online')` and `window.addEventListener('offline')`, plus a **`Simulate Offline`** toggle for presentation reliability.
+2. **IndexedDB Event Interception**:
+   When offline (`isEffectiveOnline = false`), any emitted RFID scan is intercepted before hitting the network. It is written asynchronously to browser **IndexedDB (Dexie `pendingSync` table)** with `status: PENDING` and a unique `idempotencyKey` (`EVT-<timestamp>`).
+3. **Automatic Queue Flushing**:
+   When internet returns (`Go Online`), the `SyncManager` iterates over the `pendingSync` table, applies the events to the local shipment ledger, updates `status: SYNCED`, and resets the pending queue count to 0 with zero duplicate records!
+
+### 🔍 How To Prove Offline Mode Live To Judges:
+- **Proof 1 (UI Inspector Card)**: Show the live **`💾 Dexie IndexedDB Pending Queue`** card right on the Simulator page displaying the item with its pulsing yellow `PENDING` badge!
+- **Proof 2 (Chrome DevTools F12)**: Press `F12` $\rightarrow$ `Application` tab $\rightarrow$ `Storage` $\rightarrow$ `IndexedDB` $\rightarrow$ `LogisticsControlTowerDB` $\rightarrow$ `pendingSync` table. Show them the raw database row stored in browser memory!
+- **Proof 3 (DevTools Network Offline)**: In Chrome DevTools `Network` tab, select `Offline` from the throttle dropdown and send an event. Show them zero HTTP errors occur because the event was caught at the client storage layer!
+
+---
+
+## 🧮 4. DIJKSTRA'S ALGORITHM: WHAT IT IS & WHERE IT IS IN OUR CODE
+
+### ❓ What Is Dijkstra's Algorithm?
+Dijkstra's Algorithm is a classic graph theory algorithm created by computer scientist Edsger W. Dijkstra.
+- It calculates the **shortest or fastest path** between nodes in a weighted network graph.
+- In our logistics system, **Cities are Nodes** (Chennai, Hyderabad, Bengaluru, Pune, Mumbai, Delhi, Kolkata) and **Highways are Edges**.
+- Each edge has a **transit time weight in minutes**.
+- When a `CONGESTION` (+180m delay at Hyderabad) or `WEATHER_DELAY` occurs, the algorithm increases that edge's cost and calculates the **fastest alternative bypass corridor** (e.g., diverting via Bengaluru → Pune).
+
+### 📍 Where Is It Implemented In Our Codebase?
+1. **Backend Python AWS Lambda Engine**:
+   - File: **[`backend/routing/dijkstra.py`](file:///d:/Logistics-Control-Tower/backend/routing/dijkstra.py)**
+   - Class: `Graph` (lines 13–37, manages adjacency list and dynamic `update_edge_weight`)
+   - Function: `find_fastest_route(graph, start, destination)` (lines 39–101, uses Python `heapq` Min-Heap Priority Queue for $O((V + E) \log V)$ performance)
+   - Unit Tests: **[`backend/routing/test_dijkstra.py`](file:///d:/Logistics-Control-Tower/backend/routing/test_dijkstra.py)**
+2. **Frontend Real-time Map Rerouting**:
+   - File: **[`frontend/src/pages/LiveMapPage.tsx`](file:///d:/Logistics-Control-Tower/frontend/src/pages/LiveMapPage.tsx)** (in `handleOptimizeRoute`)
+   - Database Graph Edges: **[`frontend/src/db/index.ts`](file:///d:/Logistics-Control-Tower/frontend/src/db/index.ts)** (`sampleEdges` array with weights and `delayPenalty`).
+
+---
+
+## 🏆 5. WHY OUR SOLUTION WINS (50 BUSINESS LOGIC + 50 TECHNICAL IMPLEMENTATION MARKS)
+
+### 💼 Business Logic Scoring (50 Marks) — How Our Logic Stands Out:
+1. **Zero Scan Loss via Offline Resilience**: Traditional logistics apps crash in remote rural hubs in India with zero internet. Our offline IndexedDB layer ensures drivers never lose a scan.
+2. **Proactive SLA Cost Mitigation**: Instead of reactively telling customers a package is late, our system detects traffic bottlenecks *before* the truck arrives, recalculates a bypass, and saves up to 180 minutes of transit time.
+3. **Real-Time Highway Weather Telematics**: Integrates live Open-Meteo weather telematics streaming temperature, wind, and storm severity across all 10 Indian trade hubs.
+4. **Cognito Role Governance**: Restricts rerouting and simulation controls to authenticated `ADMIN` accounts (`admin@logistics.com`).
+
+### ⚙️ Technical Implementation Scoring (50 Marks) — How Our Architecture Stands Out:
+1. **AWS Serverless Architecture**: Built on AWS IoT Core (MQTT), Lambda (Python 3.11), DynamoDB, AppSync WebSockets, and Cognito. Auto-scales with $0 idle server cost.
+2. **100% Deterministic Min-Heap Routing**: Uses mathematical Dijkstra optimization (`heapq` in Python) guaranteeing explainable shortest paths without AI hallucination errors.
+3. **Hybrid Cloud-Edge Storage**: Combines Amazon DynamoDB (Cloud Source of Truth) with Dexie IndexedDB (Client Edge Cache) for 0ms UI latency.
+4. **Automated 6-Job CI/CD Pipeline**: `.gitlab-ci.yml` running unit tests, type-checking, building bundles, and auto-deploying to AWS S3 & Lambda.
+
+---
+
+## 📌 6. EXECUTIVE SUMMARY & PROBLEM STATEMENT
 
 ### 🔴 The Problem in Modern Logistics
 Modern freight networks across India operate under severe unpredictability:
@@ -43,7 +97,7 @@ The **Logistics Control Tower** is an enterprise-grade, serverless real-time mon
 
 ---
 
-## 🛠️ 2. COMPLETE TECH STACK & LIBRARIES EXPLANATION
+## 🛠️ 7. COMPLETE TECH STACK & LIBRARIES EXPLANATION
 
 Every library and framework in our codebase was hand-picked for maximum performance, resilience, and visual excellence:
 
@@ -88,19 +142,7 @@ Every library and framework in our codebase was hand-picked for maximum performa
 
 ---
 
-## ⚖️ 3. ARCHITECTURAL COMPARISON: WHY OUR APPROACH IS BETTER
-
-### Why AWS Serverless vs. Traditional Express/Node + MongoDB Stack?
-1. **Zero Server Idle Cost & Infinite Scalability**: Traditional Express servers run 24/7 on expensive EC2 instances and crash under traffic spikes. AWS Serverless scales automatically from 0 to thousands of events with zero idle server costs.
-2. **Enterprise Security**: AWS Cognito User Pools enforce IAM role-based access control out of the box, ensuring only authorized Admin users can trigger system-wide reroutes or simulator events.
-
-### Why Dexie IndexedDB vs. `localStorage` or Redux?
-1. **Asynchronous & Non-Blocking**: `localStorage` is synchronous; writing a 500-item offline scan queue freezes the browser UI. Dexie IndexedDB operates asynchronously on a background thread.
-2. **Refresh Persistence**: Redux state resets to default whenever a user refreshes the page. Dexie IndexedDB persists all shipment statuses, reroutes, and offline queues in browser storage permanently across page reloads.
-
----
-
-## ❓ 4. HONEST HACKATHON EXPLANATION: WHY NOT REAL PHYSICAL LIVE TRUCKS?
+## ❓ 8. HONEST HACKATHON EXPLANATION: WHY NOT REAL PHYSICAL LIVE TRUCKS?
 
 ### 🗣️ How To Answer Judges If They Ask: *"Why aren't you tracking real physical trucks driving right now?"*
 > **Your Answer to Judges**:
@@ -112,7 +154,7 @@ Every library and framework in our codebase was hand-picked for maximum performa
 
 ---
 
-## 🎯 5. HACKATHON DEMO CHEATSHEET FOR JUDGES
+## 🎯 9. HACKATHON DEMO CHEATSHEET FOR JUDGES
 
 ### 1️⃣ Demo Step 1: Login & Theme
 - Login with Cognito Admin Credentials: `admin@logistics.com` / `UPSAdmin#2026`.
