@@ -1,6 +1,8 @@
 # 🏆 HACKATHON PRESENTATION & TECHNICAL DEFENSE GUIDE
 ## 🚚 UPS Smart Delivery — Logistics Control Tower MVP
 
+> 🎓 **Looking for Interview Q&A with Python/DynamoDB Code Snippets?** Check out **[`INTERVIEW_QA_GUIDE.md`](file:///d:/Logistics-Control-Tower/INTERVIEW_QA_GUIDE.md)**!
+
 ---
 
 ## 🏗️ QUICK ARCHITECTURE & API REFERENCE FOR JUDGES
