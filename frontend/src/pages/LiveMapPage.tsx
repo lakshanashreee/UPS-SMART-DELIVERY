@@ -52,6 +52,8 @@ const NETWORK_LINKS = [
   { from: 'Ahmedabad', to: 'Jaipur' },
   { from: 'Jaipur', to: 'Delhi' },
   { from: 'Delhi', to: 'Kolkata' },
+  { from: 'Jaipur', to: 'Kolkata' },
+  { from: 'Hyderabad', to: 'Kolkata' },
   { from: 'Kolkata', to: 'Visakhapatnam' },
   { from: 'Visakhapatnam', to: 'Chennai' },
   { from: 'Visakhapatnam', to: 'Hyderabad' }
@@ -128,8 +130,8 @@ export const LiveMapPage: React.FC = () => {
 
       switch (shipment.id) {
         case 'SHP-9001': // Delhi -> Kolkata
-          newPath = ['Delhi', 'Jaipur', 'Visakhapatnam', 'Kolkata'];
-          summary = `Bypassed NH19 highway storm bottleneck. Diverted via Jaipur → Visakhapatnam corridor. Saved 180 minutes!`;
+          newPath = ['Delhi', 'Jaipur', 'Kolkata'];
+          summary = `Bypassed NH19 highway storm bottleneck. Diverted via Jaipur bypass corridor. Saved 180 minutes!`;
           timeSaved = 180;
           newLoc = 'Jaipur';
           lat = 26.9124;
@@ -205,8 +207,6 @@ export const LiveMapPage: React.FC = () => {
 
   const activePath = rerouteResult ? rerouteResult.path : (activeSelected?.routePath || activeSelected?.currentRoute || [activeSelected?.origin || 'Chennai', activeSelected?.destination || 'Mumbai']);
   const currentLoc = activeSelected?.currentLocation || activeSelected?.origin || 'Chennai';
-
-  // Extract cities relevant to the currently selected package's route
   const routeCities = activePath.length > 0 ? activePath : [activeSelected?.origin || 'Chennai', activeSelected?.destination || 'Mumbai'];
 
   return (
@@ -339,55 +339,64 @@ export const LiveMapPage: React.FC = () => {
                   <marker
                     id="arrow-active"
                     viewBox="0 0 10 10"
-                    refX="6"
+                    refX="7"
                     refY="5"
                     markerWidth="6"
                     markerHeight="6"
-                    orient="auto-start-reverse"
+                    orient="auto"
                   >
                     <path d="M 0 0 L 10 5 L 0 10 z" fill={rerouteResult ? '#10b981' : '#D97706'} />
                   </marker>
                   <marker
                     id="arrow-default"
                     viewBox="0 0 10 10"
-                    refX="6"
+                    refX="5"
                     refY="5"
-                    markerWidth="5"
-                    markerHeight="5"
-                    orient="auto-start-reverse"
+                    markerWidth="4"
+                    markerHeight="4"
+                    orient="auto"
                   >
                     <path d="M 0 0 L 10 5 L 0 10 z" fill="#cbd5e1" />
                   </marker>
                 </defs>
 
-                {/* Base Network Flow Lines */}
+                {/* Background Highway Grid Lines (Faint Dashed Gray) */}
                 {NETWORK_LINKS.map((link, idx) => {
                   const source = INDIAN_CITY_NODES.find(n => n.name === link.from);
                   const target = INDIAN_CITY_NODES.find(n => n.name === link.to);
                   if (!source || !target) return null;
 
-                  let isRouteActive = false;
-                  for (let i = 0; i < activePath.length - 1; i++) {
-                    if (
-                      (activePath[i] === link.from && activePath[i + 1] === link.to) ||
-                      (activePath[i] === link.to && activePath[i + 1] === link.from)
-                    ) {
-                      isRouteActive = true;
-                      break;
-                    }
-                  }
-
                   return (
                     <line
-                      key={idx}
+                      key={`bg-grid-${idx}`}
                       x1={source.x}
                       y1={source.y}
                       x2={target.x}
                       y2={target.y}
-                      stroke={isRouteActive ? (rerouteResult ? '#10b981' : '#D97706') : '#cbd5e1'}
-                      strokeWidth={isRouteActive ? '4' : '1.5'}
-                      strokeDasharray={isRouteActive ? 'none' : '4 4'}
-                      markerEnd={isRouteActive ? 'url(#arrow-active)' : 'url(#arrow-default)'}
+                      stroke="#e2e8f0"
+                      strokeWidth="1.5"
+                      strokeDasharray="4 4"
+                    />
+                  );
+                })}
+
+                {/* EXACT ACTIVE ROUTE LINES (Segment by Segment in exact direction of activePath) */}
+                {activePath.map((city, idx) => {
+                  if (idx === activePath.length - 1) return null;
+                  const sourceNode = INDIAN_CITY_NODES.find(n => n.name === city);
+                  const targetNode = INDIAN_CITY_NODES.find(n => n.name === activePath[idx + 1]);
+                  if (!sourceNode || !targetNode) return null;
+
+                  return (
+                    <line
+                      key={`active-seg-${idx}`}
+                      x1={sourceNode.x}
+                      y1={sourceNode.y}
+                      x2={targetNode.x}
+                      y2={targetNode.y}
+                      stroke={rerouteResult ? '#10b981' : '#D97706'}
+                      strokeWidth="5"
+                      markerEnd="url(#arrow-active)"
                       className="transition-all duration-300"
                     />
                   );
