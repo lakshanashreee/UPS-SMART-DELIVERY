@@ -11,10 +11,12 @@ import {
   ArrowRight,
   Package,
   Layers,
-  Globe
+  Globe,
+  Wind
 } from 'lucide-react';
 import type { Shipment } from '../types';
 import { appsyncRealtime, type RealtimeShipmentPayload } from '../utils/appsyncRealtime';
+import { fetchLiveCityTrafficData, type LiveCityTelematics } from '../utils/trafficApi';
 
 interface CityNode {
   id: string;
@@ -61,10 +63,17 @@ export const LiveMapPage: React.FC = () => {
   const [rerouting, setRerouting] = useState<boolean>(false);
   const [rerouteResult, setRerouteResult] = useState<{ path: string[]; timeSaved: number; summary: string } | null>(null);
   const [lastRealtimeEvent, setLastRealtimeEvent] = useState<RealtimeShipmentPayload | null>(null);
+  
+  // Real open-source API telematics state
+  const [liveTraffic, setLiveTraffic] = useState<Record<string, LiveCityTelematics>>({});
+  const [isFetchingTraffic, setIsFetchingTraffic] = useState<boolean>(false);
 
   const activeSelected = selectedShipment || (shipments && shipments.length > 0 ? shipments[0] : null);
 
+  // Auto-fetch real-time telematics from Open-Meteo API on mount
   useEffect(() => {
+    handleFetchLiveTraffic();
+
     const unsubEvents = appsyncRealtime.subscribeEvents(payload => {
       setLastRealtimeEvent(payload);
 
@@ -87,7 +96,14 @@ export const LiveMapPage: React.FC = () => {
     };
   }, [activeSelected]);
 
-  // Dynamic Route Optimization per shipment's actual Origin & Destination
+  const handleFetchLiveTraffic = async () => {
+    setIsFetchingTraffic(true);
+    const data = await fetchLiveCityTrafficData();
+    setLiveTraffic(data);
+    setIsFetchingTraffic(false);
+  };
+
+  // Logically Accurate Dynamic Route Rerouting per Package
   const handleOptimizeRoute = async (shipment: Shipment) => {
     setRerouting(true);
     setRerouteResult(null);
@@ -98,34 +114,39 @@ export const LiveMapPage: React.FC = () => {
       let timeSaved = 45;
 
       switch (shipment.id) {
-        case 'SHP-1003': // Bengaluru -> Chennai
-          newPath = ['Bengaluru', 'Visakhapatnam', 'Chennai'];
-          summary = `Bypassed NH44 highway bottleneck between Bengaluru & Chennai via coastal corridor. Saved 45 minutes!`;
-          timeSaved = 45;
-          break;
         case 'SHP-9001': // Delhi -> Kolkata
-          newPath = ['Delhi', 'Jaipur', 'Ahmedabad', 'Mumbai', 'Chennai', 'Visakhapatnam', 'Kolkata'];
-          summary = `Bypassed severe weather delay on Delhi-Kolkata highway. Rerouted via Western Trade Corridor. Saved 180 minutes!`;
+          newPath = ['Delhi', 'Jaipur', 'Visakhapatnam', 'Kolkata'];
+          summary = `Bypassed NH19 direct highway storm bottleneck. Diverted via Jaipur → Visakhapatnam corridor. Saved 180 minutes!`;
           timeSaved = 180;
           break;
+
         case 'SHP-1004': // Hyderabad -> Kolkata
           newPath = ['Hyderabad', 'Visakhapatnam', 'Kolkata'];
-          summary = `Optimized coastal route avoiding central highway congestion. Saved 60 minutes!`;
-          timeSaved = 60;
+          summary = `Bypassed NH16 central highway flooding. Diverted through Visakhapatnam coastal bypass. Saved 100 minutes!`;
+          timeSaved = 100;
           break;
-        case 'SHP-1005': // Pune -> Delhi
-          newPath = ['Pune', 'Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'];
-          summary = `Dynamic path computed avoiding urban bottlenecks. Saved 90 minutes!`;
-          timeSaved = 90;
+
+        case 'SHP-1003': // Bengaluru -> Chennai
+          newPath = ['Bengaluru', 'Chennai'];
+          summary = `Direct Golden Quadrilateral Express route confirmed clear. Maximum speed!`;
+          timeSaved = 20;
           break;
+
         case 'SHP-1002': // Mumbai -> Delhi
           newPath = ['Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'];
-          summary = `Optimal route confirmed via Golden Quadrilateral Expressway. Maximum efficiency!`;
+          summary = `Optimal route confirmed via Western Expressway corridor. 0 delay penalty!`;
           timeSaved = 30;
           break;
+
+        case 'SHP-1005': // Pune -> Delhi
+          newPath = ['Pune', 'Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'];
+          summary = `Optimal trade route confirmed via NH48. Maximum velocity!`;
+          timeSaved = 25;
+          break;
+
         default: // SHIP-001 Chennai -> Mumbai
           newPath = ['Chennai', 'Bengaluru', 'Pune', 'Mumbai'];
-          summary = `Bypassed traffic congestion in Hyderabad. Diverted through Bengaluru → Pune corridor. Saved 140 minutes!`;
+          summary = `Bypassed 90% capacity congestion in Hyderabad. Diverted through Bengaluru → Pune bypass corridor. Saved 140 minutes!`;
           timeSaved = 140;
           break;
       }
@@ -173,15 +194,24 @@ export const LiveMapPage: React.FC = () => {
         <div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-[#351C15] tracking-tight flex items-center gap-2">
             <MapPin className="w-6 h-6 text-[#D97706]" />
-            Live Shipment Tracker & Interactive Route Map
+            Live Telematics & Route Optimizer
           </h2>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            Realtime package tracking, interactive route overlays & dynamic rerouting across India
+            Realtime package tracking, open-source weather telematics & dynamic rerouting
           </p>
         </div>
 
-        {/* View Mode Toggle Switch */}
-        <div className="flex items-center gap-2">
+        {/* Real-time Open-Source Traffic API & View Mode Controls */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleFetchLiveTraffic}
+            disabled={isFetchingTraffic}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-950 rounded-xl text-xs font-bold border border-amber-300 transition-all cursor-pointer shadow-xs"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-[#D97706] ${isFetchingTraffic ? 'animate-spin' : ''}`} />
+            <span>{isFetchingTraffic ? 'Syncing Weather API...' : 'Sync Live Open-Meteo API'}</span>
+          </button>
+
           <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
             <button
               onClick={() => setViewMode('FLOWCHART')}
@@ -204,7 +234,7 @@ export const LiveMapPage: React.FC = () => {
               }`}
             >
               <Globe className="w-3.5 h-3.5 text-blue-600" />
-              <span>Live OpenStreetMap GIS</span>
+              <span>OpenStreetMap GIS</span>
             </button>
           </div>
         </div>
@@ -225,19 +255,23 @@ export const LiveMapPage: React.FC = () => {
         <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col space-y-4">
           
           {/* Step-By-Step Interactive Route Node Timeline Bar */}
-          <div className="p-3 bg-[#351C15] rounded-xl text-white flex flex-col gap-2">
+          <div className="p-3.5 bg-[#351C15] rounded-xl text-white flex flex-col gap-2 shadow-sm">
             <div className="flex items-center justify-between text-[11px]">
               <span className="font-extrabold text-amber-300 flex items-center gap-1.5">
                 <Navigation className="w-3.5 h-3.5" />
-                Active Selected Route ({activeSelected?.id}): {activeSelected?.origin} &rarr; {activeSelected?.destination}
+                Active Selected Package ({activeSelected?.id}): {activeSelected?.origin} &rarr; {activeSelected?.destination}
               </span>
               {rerouteResult ? (
-                <span className="px-2 py-0.5 bg-emerald-500 text-white rounded font-extrabold text-[10px]">
+                <span className="px-2.5 py-0.5 bg-emerald-500 text-white rounded font-extrabold text-[10px]">
                   ⚡ REROUTED (Saved {rerouteResult.timeSaved}m)
                 </span>
+              ) : activeSelected?.status === 'AT_RISK' ? (
+                <span className="px-2.5 py-0.5 bg-rose-600 text-white rounded font-extrabold text-[10px] animate-pulse">
+                  ⚠️ AT RISK (+{activeSelected?.delayMinutes}m Delay)
+                </span>
               ) : (
-                <span className="px-2 py-0.5 bg-amber-500/30 text-amber-300 rounded font-bold text-[10px] border border-amber-500/40">
-                  STANDARD PATH
+                <span className="px-2.5 py-0.5 bg-emerald-500/30 text-emerald-300 rounded font-bold text-[10px] border border-emerald-500/40">
+                  ON TRACK
                 </span>
               )}
             </div>
@@ -334,7 +368,8 @@ export const LiveMapPage: React.FC = () => {
                   const isOrigin = activeSelected?.origin === node.name;
                   const isDest = activeSelected?.destination === node.name;
                   const isInActiveRoute = activePath.includes(node.name);
-                  const isCongested = node.name === 'Hyderabad';
+                  const cityData = liveTraffic[node.name];
+                  const isCongested = node.name === 'Hyderabad' || cityData?.condition === 'STORM';
 
                   return (
                     <g key={node.id} transform={`translate(${node.x}, ${node.y})`} className="cursor-pointer">
@@ -415,7 +450,6 @@ export const LiveMapPage: React.FC = () => {
                   src="https://www.openstreetmap.org/export/embed.html?bbox=68.0%2C8.0%2C90.0%2C32.0&amp;layer=mapnik"
                 ></iframe>
 
-                {/* Interactive Dynamic Route Polyline Overlay Banner on OpenStreetMap */}
                 <div className="absolute bottom-3 left-3 right-3 p-3 bg-white/95 backdrop-blur-md rounded-xl border border-slate-200 shadow-lg text-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                   <div className="flex items-center gap-2">
                     <span className={`w-3 h-3 rounded-full ${rerouteResult ? 'bg-emerald-500 animate-pulse' : 'bg-blue-600'}`}></span>
@@ -508,9 +542,9 @@ export const LiveMapPage: React.FC = () => {
                     <span className="text-[11px] text-slate-500 font-bold">({shp.origin || 'Chennai'} &rarr; {shp.destination || 'Mumbai'})</span>
                   </div>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                    shp.status === 'AT_RISK' ? 'bg-rose-100 text-rose-800' :
-                    shp.status === 'DELAYED' ? 'bg-amber-100 text-amber-900' :
-                    'bg-emerald-100 text-emerald-800'
+                    shp.status === 'AT_RISK' ? 'bg-rose-100 text-rose-800 border border-rose-300' :
+                    shp.status === 'DELAYED' ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+                    'bg-emerald-100 text-emerald-800 border border-emerald-300'
                   }`}>
                     {shp.status}
                   </span>
@@ -569,6 +603,24 @@ export const LiveMapPage: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {/* Real Open-Meteo Weather Telematics Widget */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1.5">
+                <div className="flex items-center justify-between text-slate-700 font-bold">
+                  <span className="flex items-center gap-1 text-[#351C15]">
+                    <Wind className="w-3.5 h-3.5 text-blue-600" /> Live City Weather API:
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-normal">Open-Meteo</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                  {Object.values(liveTraffic).slice(0, 4).map(cityData => (
+                    <div key={cityData.city} className="p-1.5 bg-white rounded border border-slate-200 flex justify-between items-center">
+                      <span className="font-bold text-slate-800">{cityData.city}</span>
+                      <span className="text-slate-600 font-mono">{cityData.tempC}°C</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>

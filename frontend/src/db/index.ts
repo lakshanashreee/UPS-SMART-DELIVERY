@@ -13,7 +13,7 @@ export class LogisticsDatabase extends Dexie {
 
   constructor() {
     super('LogisticsControlTowerDB');
-    this.version(3).stores({
+    this.version(4).stores({
       shipments: 'id, trackingNumber, status, riskLevel, currentLocation',
       hubs: 'id, name, city',
       networkEdges: 'id, source, target, status',
@@ -31,29 +31,30 @@ export const db = new LogisticsDatabase();
 export async function seedInitialData() {
   const sampleHubs: HubNode[] = [
     { id: 'HUB-CHE', name: 'Chennai Hub', city: 'Chennai', lat: 13.0827, lng: 80.2707, capacityPercentage: 60, delayMultiplier: 1.0 },
-    { id: 'HUB-HYD', name: 'Hyderabad Hub', city: 'Hyderabad', lat: 17.3850, lng: 78.4867, capacityPercentage: 75, delayMultiplier: 1.2 },
+    { id: 'HUB-HYD', name: 'Hyderabad Hub', city: 'Hyderabad', lat: 17.3850, lng: 78.4867, capacityPercentage: 90, delayMultiplier: 2.2 },
     { id: 'HUB-BLR', name: 'Bengaluru Hub', city: 'Bengaluru', lat: 12.9716, lng: 77.5946, capacityPercentage: 50, delayMultiplier: 1.0 },
     { id: 'HUB-PUN', name: 'Pune Hub', city: 'Pune', lat: 18.5204, lng: 73.8567, capacityPercentage: 40, delayMultiplier: 1.0 },
     { id: 'HUB-MUM', name: 'Mumbai Logistics Center', city: 'Mumbai', lat: 19.0760, lng: 72.8777, capacityPercentage: 80, delayMultiplier: 1.5 },
-    { id: 'HUB-DEL', name: 'Delhi Central Hub', city: 'Delhi', lat: 28.6139, lng: 77.2090, capacityPercentage: 85, delayMultiplier: 1.8 },
+    { id: 'HUB-DEL', name: 'Delhi Central Hub', city: 'Delhi', lat: 28.6139, lng: 77.2090, capacityPercentage: 88, delayMultiplier: 2.0 },
     { id: 'HUB-CCU', name: 'Kolkata Gateway', city: 'Kolkata', lat: 22.5726, lng: 88.3639, capacityPercentage: 45, delayMultiplier: 1.0 },
     { id: 'HUB-AMD', name: 'Ahmedabad Logistics Hub', city: 'Ahmedabad', lat: 23.0225, lng: 72.5714, capacityPercentage: 60, delayMultiplier: 1.1 },
     { id: 'HUB-JAI', name: 'Jaipur Gateway', city: 'Jaipur', lat: 26.9124, lng: 75.7873, capacityPercentage: 40, delayMultiplier: 1.0 },
-    { id: 'HUB-[#VTZ]', name: 'Visakhapatnam Hub', city: 'Visakhapatnam', lat: 17.6868, lng: 83.2185, capacityPercentage: 35, delayMultiplier: 1.0 }
+    { id: 'HUB-VTZ', name: 'Visakhapatnam Hub', city: 'Visakhapatnam', lat: 17.6868, lng: 83.2185, capacityPercentage: 35, delayMultiplier: 1.0 }
   ];
 
   const sampleEdges: NetworkEdgeItem[] = [
-    { id: 'EDGE-CHE-HYD', source: 'Chennai', target: 'Hyderabad', weight: 360, status: 'CLEAR', delayPenalty: 0 },
-    { id: 'EDGE-HYD-MUM', source: 'Hyderabad', target: 'Mumbai', weight: 360, status: 'CLEAR', delayPenalty: 0 },
+    { id: 'EDGE-CHE-HYD', source: 'Chennai', target: 'Hyderabad', weight: 360, status: 'CONGESTED', delayPenalty: 180 },
+    { id: 'EDGE-HYD-MUM', source: 'Hyderabad', target: 'Mumbai', weight: 360, status: 'CONGESTED', delayPenalty: 180 },
     { id: 'EDGE-CHE-BLR', source: 'Chennai', target: 'Bengaluru', weight: 210, status: 'CLEAR', delayPenalty: 0 },
     { id: 'EDGE-BLR-PUN', source: 'Bengaluru', target: 'Pune', weight: 300, status: 'CLEAR', delayPenalty: 0 },
     { id: 'EDGE-PUN-MUM', source: 'Pune', target: 'Mumbai', weight: 90, status: 'CLEAR', delayPenalty: 0 },
     { id: 'EDGE-MUM-AMD', source: 'Mumbai', target: 'Ahmedabad', weight: 300, status: 'CLEAR', delayPenalty: 0 },
     { id: 'EDGE-AMD-JAI', source: 'Ahmedabad', target: 'Jaipur', weight: 360, status: 'CLEAR', delayPenalty: 0 },
     { id: 'EDGE-JAI-DEL', source: 'Jaipur', target: 'Delhi', weight: 180, status: 'CLEAR', delayPenalty: 0 },
-    { id: 'EDGE-DEL-CCU', source: 'Delhi', target: 'Kolkata', weight: 540, status: 'CLEAR', delayPenalty: 0 },
+    { id: 'EDGE-DEL-CCU', source: 'Delhi', target: 'Kolkata', weight: 540, status: 'CONGESTED', delayPenalty: 210 },
+    { id: 'EDGE-HYD-CCU', source: 'Hyderabad', target: 'Kolkata', weight: 600, status: 'CONGESTED', delayPenalty: 150 },
     { id: 'EDGE-CCU-VTZ', source: 'Kolkata', target: 'Visakhapatnam', weight: 480, status: 'CLEAR', delayPenalty: 0 },
-    { id: 'EDGE-VTZ-CHE', source: 'Visakhapatnam', target: 'Chennai', weight: 420, status: 'CLEAR', delayPenalty: 0 }
+    { id: 'EDGE-VTZ-HYD', source: 'Visakhapatnam', target: 'Hyderabad', weight: 350, status: 'CLEAR', delayPenalty: 0 }
   ];
 
   const sampleShipments: Shipment[] = [
@@ -62,17 +63,17 @@ export async function seedInitialData() {
       trackingNumber: 'TRK-CHE-MUM-001',
       origin: 'Chennai',
       destination: 'Mumbai',
-      currentLocation: 'Pune',
-      coordinates: [73.8567, 18.5204],
-      status: 'REROUTED',
-      riskLevel: 'MEDIUM',
-      etaMinutes: 620,
-      routePath: ['Chennai', 'Bengaluru', 'Pune', 'Mumbai'],
+      currentLocation: 'Hyderabad',
+      coordinates: [78.4867, 17.3850],
+      status: 'AT_RISK',
+      riskLevel: 'HIGH',
+      etaMinutes: 720,
+      routePath: ['Chennai', 'Hyderabad', 'Mumbai'],
       originalRoute: ['Chennai', 'Hyderabad', 'Mumbai'],
-      currentRoute: ['Chennai', 'Bengaluru', 'Pune', 'Mumbai'],
-      delayMinutes: 30,
-      lat: 18.5204,
-      lng: 73.8567,
+      currentRoute: ['Chennai', 'Hyderabad', 'Mumbai'],
+      delayMinutes: 180,
+      lat: 17.3850,
+      lng: 78.4867,
       lastUpdated: new Date().toISOString(),
       carrier: 'Express Cargo'
     },
@@ -89,30 +90,30 @@ export async function seedInitialData() {
       routePath: ['Delhi', 'Kolkata'],
       originalRoute: ['Delhi', 'Kolkata'],
       currentRoute: ['Delhi', 'Kolkata'],
-      delayMinutes: 180,
+      delayMinutes: 210,
       lat: 28.6139,
       lng: 77.2090,
       lastUpdated: new Date().toISOString(),
       carrier: 'North-East Express'
     },
     {
-      id: 'SHP-1002',
-      trackingNumber: 'TRK-BOM-DEL-102',
-      origin: 'Mumbai',
-      destination: 'Delhi',
-      currentLocation: 'Ahmedabad',
-      coordinates: [72.5714, 23.0225],
-      status: 'ON_TRACK',
-      riskLevel: 'LOW',
-      etaMinutes: 480,
-      routePath: ['Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'],
-      originalRoute: ['Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'],
-      currentRoute: ['Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'],
-      delayMinutes: 0,
-      lat: 23.0225,
-      lng: 72.5714,
+      id: 'SHP-1004',
+      trackingNumber: 'TRK-HYD-CCU-104',
+      origin: 'Hyderabad',
+      destination: 'Kolkata',
+      currentLocation: 'Hyderabad',
+      coordinates: [78.4867, 17.3850],
+      status: 'AT_RISK',
+      riskLevel: 'HIGH',
+      etaMinutes: 600,
+      routePath: ['Hyderabad', 'Kolkata'],
+      originalRoute: ['Hyderabad', 'Kolkata'],
+      currentRoute: ['Hyderabad', 'Kolkata'],
+      delayMinutes: 150,
+      lat: 17.3850,
+      lng: 78.4867,
       lastUpdated: new Date().toISOString(),
-      carrier: 'Western Logistics'
+      carrier: 'Deccan Freight'
     },
     {
       id: 'SHP-1003',
@@ -134,23 +135,23 @@ export async function seedInitialData() {
       carrier: 'South India Express'
     },
     {
-      id: 'SHP-1004',
-      trackingNumber: 'TRK-HYD-CCU-104',
-      origin: 'Hyderabad',
-      destination: 'Kolkata',
-      currentLocation: 'Hyderabad',
-      coordinates: [78.4867, 17.3850],
-      status: 'DELAYED',
-      riskLevel: 'MEDIUM',
-      etaMinutes: 600,
-      routePath: ['Hyderabad', 'Visakhapatnam', 'Kolkata'],
-      originalRoute: ['Hyderabad', 'Visakhapatnam', 'Kolkata'],
-      currentRoute: ['Hyderabad', 'Visakhapatnam', 'Kolkata'],
-      delayMinutes: 45,
-      lat: 17.3850,
-      lng: 78.4867,
+      id: 'SHP-1002',
+      trackingNumber: 'TRK-BOM-DEL-102',
+      origin: 'Mumbai',
+      destination: 'Delhi',
+      currentLocation: 'Ahmedabad',
+      coordinates: [72.5714, 23.0225],
+      status: 'ON_TRACK',
+      riskLevel: 'LOW',
+      etaMinutes: 480,
+      routePath: ['Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'],
+      originalRoute: ['Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'],
+      currentRoute: ['Mumbai', 'Ahmedabad', 'Jaipur', 'Delhi'],
+      delayMinutes: 0,
+      lat: 23.0225,
+      lng: 72.5714,
       lastUpdated: new Date().toISOString(),
-      carrier: 'Deccan Freight'
+      carrier: 'Western Logistics'
     },
     {
       id: 'SHP-1005',
@@ -175,10 +176,9 @@ export async function seedInitialData() {
 
   const sampleMetadata: MetadataItem[] = [
     { key: 'lastSyncedAt', value: new Date().toISOString(), lastSyncedAt: new Date().toISOString() },
-    { key: 'dbVersion', value: '3.0.0' }
+    { key: 'dbVersion', value: '4.0.0' }
   ];
 
-  // Force sync sample dataset
   await db.hubs.clear();
   await db.hubs.bulkAdd(sampleHubs);
 
