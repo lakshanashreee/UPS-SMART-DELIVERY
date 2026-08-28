@@ -1,0 +1,74 @@
+default:
+  tags:
+    - windows
+
+stages:
+  - test
+  - build
+  - deploy
+
+# -----------------------------------------------------------------------------
+# 1. Backend Unit Tests
+# Only runs when files in backend/ or .gitlab-ci.yml change
+# -----------------------------------------------------------------------------
+test-backend:
+  stage: test
+  script:
+    - Write-Host "Running Backend Python Routing Unit Tests..."
+    - cd backend
+    - python -m unittest discover -s routing -p "test_*.py"
+  rules:
+    - changes:
+        - backend/**/*
+        - .gitlab-ci.yml
+
+# -----------------------------------------------------------------------------
+# 2. Frontend Production Build
+# Only runs when files in frontend/ or .gitlab-ci.yml change
+# -----------------------------------------------------------------------------
+build-frontend:
+  stage: build
+  script:
+    - Write-Host "Building React Production Distribution Bundle..."
+    - cd frontend
+    - cmd /c "npm install"
+    - cmd /c "npm run build"
+  artifacts:
+    paths:
+      - frontend/dist/
+    expire_in: 1 day
+  rules:
+    - changes:
+        - frontend/**/*
+        - .gitlab-ci.yml
+
+# -----------------------------------------------------------------------------
+# 3. Frontend S3 & Cloud Hosting Deploy
+# Syncs built dist/ to live AWS S3 hosting bucket
+# Only runs when frontend/ or .gitlab-ci.yml changes
+# -----------------------------------------------------------------------------
+deploy-frontend:
+  stage: deploy
+  needs: ["build-frontend"]
+  script:
+    - Write-Host "Deploying Frontend Assets to AWS S3 Website Bucket..."
+    - aws s3 sync frontend/dist s3://logistics-control-tower-dev-frontend-597289949963 --delete
+  rules:
+    - changes:
+        - frontend/**/*
+        - .gitlab-ci.yml
+
+# -----------------------------------------------------------------------------
+# 4. Infrastructure Terraform Deploy
+# Only runs when files in infrastructure/ change
+# -----------------------------------------------------------------------------
+deploy-infrastructure:
+  stage: deploy
+  script:
+    - Write-Host "Applying Terraform Infrastructure Updates..."
+    - cd infrastructure
+    - terraform init
+    - terraform apply -auto-approve
+  rules:
+    - changes:
+        - infrastructure/**/*
