@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-import { Cpu, Send, Radio, History, CheckCircle, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Cpu, Send, Radio, History, CheckCircle, ShieldCheck, AlertTriangle, Database } from 'lucide-react';
 import { syncManager } from '../utils/syncManager';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,6 +9,7 @@ export const AdminSimulatorPage: React.FC = () => {
   const { user } = useAuth();
   const shipments = useLiveQuery(() => db.shipments.toArray(), [], []);
   const scanLogs = useLiveQuery(() => db.scanEvents.reverse().limit(15).toArray(), [], []);
+  const pendingSyncQueue = useLiveQuery(() => db.pendingSync.toArray(), [], []);
 
   // Form State
   const [selectedShipmentId, setSelectedShipmentId] = useState<string>('SHIP-001');
@@ -73,10 +74,10 @@ export const AdminSimulatorPage: React.FC = () => {
       const queuedItem = await syncManager.queueEvent(eventType, payload);
       logs.push(`[1/3] Saved event [${eventId}] into browser offline database (IndexedDB)`);
       logs.push(`[2/3] Idempotency Key registered: ${queuedItem.idempotencyKey}`);
-      logs.push(`[3/3] Event queued safely. Will automatically sync to AWS when internet returns!`);
+      logs.push(`[3/3] Event queued safely in IndexedDB pendingSync table. Will auto-sync when online!`);
       
       setPipelineLogs(logs);
-      setLastEmittedMsg(`Queued offline event [${eventId}]. Pending sync queue updated.`);
+      setLastEmittedMsg(`Queued offline event [${eventId}] into Dexie IndexedDB.`);
       setIsSubmitting(false);
       return;
     }
@@ -276,7 +277,7 @@ export const AdminSimulatorPage: React.FC = () => {
           </div>
         </div>
 
-        {/* End-to-End Processing Verification Output */}
+        {/* End-to-End Processing Verification Output & Live IndexedDB Inspector */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
           <h3 className="font-extrabold text-base text-[#351C15] flex items-center gap-2 border-b border-slate-100 pb-3">
             <History className="w-5 h-5 text-[#D97706]" />
@@ -290,7 +291,7 @@ export const AdminSimulatorPage: React.FC = () => {
             </div>
           )}
 
-          <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1 bg-slate-900 text-slate-100 p-3.5 rounded-xl border border-slate-800 font-mono text-[11px]">
+          <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1 bg-slate-900 text-slate-100 p-3.5 rounded-xl border border-slate-800 font-mono text-[11px]">
             {pipelineLogs.map((log, idx) => (
               <div key={idx} className="border-b border-slate-800 pb-1">
                 {log}
@@ -298,17 +299,47 @@ export const AdminSimulatorPage: React.FC = () => {
             ))}
 
             {pipelineLogs.length === 0 && (
-              <p className="text-slate-400 italic text-center py-8 font-sans">
+              <p className="text-slate-400 italic text-center py-6 font-sans">
                 Select parameters above and click "Send Live RFID Scan Event" to observe real-time cloud event processing.
               </p>
             )}
           </div>
 
-          <div className="border-t border-slate-100 pt-3">
-            <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Recent Ingested Scan History</h4>
-            <div className="space-y-1 max-h-[140px] overflow-y-auto">
+          {/* Live Dexie IndexedDB Pending Queue Inspector Card */}
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold text-[#351C15]">
+              <span className="flex items-center gap-1.5">
+                <Database className="w-4 h-4 text-[#D97706]" /> Dexie IndexedDB Pending Queue ({pendingSyncQueue?.length || 0} items)
+              </span>
+              <span className="text-[10px] text-slate-500 font-mono">Table: pendingSync</span>
+            </div>
+
+            <div className="space-y-1 max-h-[100px] overflow-y-auto text-[10px] font-mono">
+              {pendingSyncQueue?.map(item => (
+                <div key={item.id} className="p-1.5 bg-white rounded border border-slate-200 flex justify-between items-center">
+                  <span className="font-bold text-slate-800">{item.eventId}</span>
+                  <span className="text-slate-600">{item.action} ({item.payload?.shipmentId})</span>
+                  <span className={`px-1.5 py-0.5 rounded font-extrabold ${
+                    item.status === 'PENDING' ? 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse' : 'bg-emerald-100 text-emerald-800'
+                  }`}>
+                    {item.status}
+                  </span>
+                </div>
+              ))}
+
+              {(!pendingSyncQueue || pendingSyncQueue.length === 0) && (
+                <p className="text-slate-400 italic text-center py-1">
+                  Queue is empty. Simulate Offline and send an event to watch it queue in IndexedDB!
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-2">
+            <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Recent Scan History</h4>
+            <div className="space-y-1 max-h-[100px] overflow-y-auto">
               {scanLogs?.map(evt => (
-                <div key={evt.id} className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] flex justify-between items-center font-mono">
+                <div key={evt.id} className="p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[10px] flex justify-between items-center font-mono">
                   <span className="text-[#351C15] font-extrabold">{evt.eventType}</span>
                   <span className="text-slate-700 font-bold">{evt.shipmentId} @ {evt.hubId}</span>
                   <span className="text-slate-500">{new Date(evt.timestamp).toLocaleTimeString()}</span>

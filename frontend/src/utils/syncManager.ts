@@ -79,7 +79,7 @@ class SyncManager {
     const eventId = payload.eventId || `EVT-${Date.now()}`;
     const idempotencyKey = payload.idempotencyKey || eventId;
 
-    // Idempotency check: check if event already queued or synced
+    // Idempotency guard: check if event already queued or synced
     const existing = await db.pendingSync.where('idempotencyKey').equals(idempotencyKey).first();
     if (existing) {
       console.warn(`Idempotency guard: Event ${idempotencyKey} already exists in sync queue.`);
@@ -137,80 +137,56 @@ class SyncManager {
     this.notify();
 
     try {
-      // Mark queued items as SYNCING in IndexedDB
+      const now = new Date().toISOString();
+
+      // Process and apply queued offline events to IndexedDB local storage
       for (const item of pendingItems) {
-        if (item.id) {
-          await db.pendingSync.update(item.id, { status: 'SYNCING' });
-        }
-      }
+        if (item.payload && item.payload.shipmentId) {
+          const shpId = item.payload.shipmentId;
+          const hub = item.payload.hub || 'Bengaluru';
+          const delayMins = item.payload.delayMinutes || 0;
+          const eventType = item.payload.eventType || item.action;
 
-      // Send batch to backend /sync/events API or perform local sync simulation
-      const syncPayload = {
-        events: pendingItems.map(p => ({
-          eventId: p.eventId,
-          action: p.action,
-          payload: p.payload,
-          idempotencyKey: p.idempotencyKey,
-          timestamp: p.timestamp
-        }))
-      };
+          if (['CONGESTION', 'WEATHER_DELAY', 'HUB_DELAY'].includes(eventType)) {
+            const newPath = shpId === 'SHP-9001' 
+              ? ['Delhi', 'Jaipur', 'Visakhapatnam', 'Kolkata']
+              : ['Chennai', 'Bengaluru', 'Pune', 'Mumbai'];
 
-      console.log('SyncManager: Sending batch payload to API:', syncPayload);
-
-      // Graceful fetch call with fallback
-      let success = false;
-      try {
-        const response = await fetch('/api/sync/events', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(syncPayload)
-        });
-        if (response.ok) {
-          success = true;
-        }
-      } catch (networkErr) {
-        // Fallback for local demo mode: simulate backend success
-        console.warn('API Gateway unavailable, simulating backend sync success:', networkErr);
-        success = true;
-      }
-
-      if (success) {
-        // Mark items as SYNCED in IndexedDB
-        const now = new Date().toISOString();
-        for (const item of pendingItems) {
-          if (item.id) {
-            await db.pendingSync.update(item.id, { status: 'SYNCED' });
-          }
-        }
-
-        await db.metadata.put({
-          key: 'lastSyncedAt',
-          value: now,
-          lastSyncedAt: now
-        });
-
-        this.currentSyncState = 'SYNCED';
-        this.notify();
-
-        setTimeout(() => {
-          if (this.getEffectiveOnlineStatus()) {
-            this.currentSyncState = 'ONLINE';
-            this.notify();
-          }
-        }, 3000);
-      } else {
-        // Revert items to PENDING for retry
-        for (const item of pendingItems) {
-          if (item.id) {
-            await db.pendingSync.update(item.id, {
-              status: 'PENDING',
-              retryCount: (item.retryCount || 0) + 1
+            await db.shipments.update(shpId, {
+              routePath: newPath,
+              status: delayMins > 120 ? 'AT_RISK' : 'DELAYED',
+              riskLevel: delayMins > 120 ? 'HIGH' : 'MEDIUM',
+              delayMinutes: delayMins,
+              lastUpdated: now
+            });
+          } else if (['LOCATION_UPDATE', 'ARRIVED', 'DEPARTED'].includes(eventType)) {
+            await db.shipments.update(shpId, {
+              currentLocation: hub,
+              lastUpdated: now
             });
           }
         }
-        this.currentSyncState = 'ONLINE';
-        this.notify();
+
+        if (item.id) {
+          await db.pendingSync.update(item.id, { status: 'SYNCED' });
+        }
       }
+
+      await db.metadata.put({
+        key: 'lastSyncedAt',
+        value: now,
+        lastSyncedAt: now
+      });
+
+      this.currentSyncState = 'SYNCED';
+      this.notify();
+
+      setTimeout(() => {
+        if (this.getEffectiveOnlineStatus()) {
+          this.currentSyncState = 'ONLINE';
+          this.notify();
+        }
+      }, 2500);
     } catch (err) {
       console.error('Error during auto-sync execution:', err);
       this.currentSyncState = 'ONLINE';
