@@ -6,7 +6,6 @@ import {
   RefreshCw,
   Navigation,
   Activity,
-  Radio,
   CheckCircle2,
   Zap,
   ArrowRight,
@@ -61,16 +60,11 @@ export const LiveMapPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'FLOWCHART' | 'OPENSTREETMAP'>('FLOWCHART');
   const [rerouting, setRerouting] = useState<boolean>(false);
   const [rerouteResult, setRerouteResult] = useState<{ path: string[]; timeSaved: number; summary: string } | null>(null);
-  const [realtimeConnection, setRealtimeConnection] = useState<string>('CONNECTED');
   const [lastRealtimeEvent, setLastRealtimeEvent] = useState<RealtimeShipmentPayload | null>(null);
 
   const activeSelected = selectedShipment || (shipments && shipments.length > 0 ? shipments[0] : null);
 
   useEffect(() => {
-    const unsubConn = appsyncRealtime.subscribeConnectionState(state => {
-      setRealtimeConnection(state);
-    });
-
     const unsubEvents = appsyncRealtime.subscribeEvents(payload => {
       setLastRealtimeEvent(payload);
 
@@ -89,7 +83,6 @@ export const LiveMapPage: React.FC = () => {
     });
 
     return () => {
-      unsubConn();
       unsubEvents();
     };
   }, [activeSelected]);
@@ -170,7 +163,7 @@ export const LiveMapPage: React.FC = () => {
     }, 600);
   };
 
-  const activePath = activeSelected?.routePath || activeSelected?.currentRoute || [activeSelected?.origin || 'Chennai', activeSelected?.destination || 'Mumbai'];
+  const activePath = rerouteResult ? rerouteResult.path : (activeSelected?.routePath || activeSelected?.currentRoute || [activeSelected?.origin || 'Chennai', activeSelected?.destination || 'Mumbai']);
   const currentLoc = activeSelected?.currentLocation || activeSelected?.origin || 'Chennai';
 
   return (
@@ -180,14 +173,14 @@ export const LiveMapPage: React.FC = () => {
         <div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-[#351C15] tracking-tight flex items-center gap-2">
             <MapPin className="w-6 h-6 text-[#D97706]" />
-            Live Shipment Tracker & Route Graph
+            Live Shipment Tracker & Interactive Route Map
           </h2>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            Realtime package tracking & dynamic route optimization across Indian trade hubs
+            Realtime package tracking, interactive route overlays & dynamic rerouting across India
           </p>
         </div>
 
-        {/* View Mode Toggle Switch (OpenStreetMap GIS vs Flowchart) */}
+        {/* View Mode Toggle Switch */}
         <div className="flex items-center gap-2">
           <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
             <button
@@ -211,16 +204,8 @@ export const LiveMapPage: React.FC = () => {
               }`}
             >
               <Globe className="w-3.5 h-3.5 text-blue-600" />
-              <span>Live OpenStreetMap</span>
+              <span>Live OpenStreetMap GIS</span>
             </button>
-          </div>
-
-          <div className="hidden md:flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-full text-xs font-semibold">
-            <Radio className="w-4 h-4 text-emerald-600 animate-pulse" />
-            <span className="text-slate-600 font-bold">AWS Stream:</span>
-            <span className="px-2 py-0.5 rounded font-extrabold text-[11px] bg-emerald-100 text-emerald-800 border border-emerald-300">
-              🟢 {realtimeConnection}
-            </span>
           </div>
         </div>
       </div>
@@ -239,22 +224,43 @@ export const LiveMapPage: React.FC = () => {
         {/* Visual Map Canvas Container */}
         <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col space-y-4">
           
-          {/* Legend Banner */}
-          <div className="flex flex-wrap items-center justify-between text-xs bg-slate-50 p-3 rounded-xl border border-slate-200 gap-2">
-            <span className="font-bold text-[#351C15]">Map Legend:</span>
-            <div className="flex items-center gap-4 text-[11px] font-semibold text-slate-700">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Normal Hub
+          {/* Step-By-Step Interactive Route Node Timeline Bar */}
+          <div className="p-3 bg-[#351C15] rounded-xl text-white flex flex-col gap-2">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="font-extrabold text-amber-300 flex items-center gap-1.5">
+                <Navigation className="w-3.5 h-3.5" />
+                Active Selected Route ({activeSelected?.id}): {activeSelected?.origin} &rarr; {activeSelected?.destination}
               </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Congested Hub
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-3.5 h-3.5 rounded-full bg-[#FFB500] border-2 border-[#351C15] animate-pulse"></span> Active Location
-              </span>
-              <span className="flex items-center gap-1 text-[#D97706] font-bold">
-                <ArrowRight className="w-3.5 h-3.5" /> Route Direction
-              </span>
+              {rerouteResult ? (
+                <span className="px-2 py-0.5 bg-emerald-500 text-white rounded font-extrabold text-[10px]">
+                  ⚡ REROUTED (Saved {rerouteResult.timeSaved}m)
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 bg-amber-500/30 text-amber-300 rounded font-bold text-[10px] border border-amber-500/40">
+                  STANDARD PATH
+                </span>
+              )}
+            </div>
+
+            {/* Interactive Node Overflow Path Badges */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-bold">
+              {activePath.map((cityName, idx) => (
+                <div key={idx} className="flex items-center gap-2 flex-shrink-0">
+                  <span className={`px-3 py-1 rounded-lg border text-xs flex items-center gap-1 transition-all ${
+                    cityName === currentLoc
+                      ? 'bg-[#FFB500] text-[#351C15] border-[#D97706] font-extrabold shadow-sm scale-105'
+                      : rerouteResult
+                      ? 'bg-emerald-700 text-white border-emerald-500 font-bold'
+                      : 'bg-slate-800 text-slate-200 border-slate-700'
+                  }`}>
+                    {cityName === currentLoc && '📍 '}
+                    {cityName}
+                  </span>
+                  {idx < activePath.length - 1 && (
+                    <ArrowRight className={`w-4 h-4 ${rerouteResult ? 'text-emerald-400 font-extrabold' : 'text-[#FFB500]'}`} />
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -274,7 +280,7 @@ export const LiveMapPage: React.FC = () => {
                     markerHeight="6"
                     orient="auto-start-reverse"
                   >
-                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#D97706" />
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill={rerouteResult ? '#10b981' : '#D97706'} />
                   </marker>
                   <marker
                     id="arrow-default"
@@ -313,8 +319,8 @@ export const LiveMapPage: React.FC = () => {
                       y1={source.y}
                       x2={target.x}
                       y2={target.y}
-                      stroke={isRouteActive ? '#D97706' : '#cbd5e1'}
-                      strokeWidth={isRouteActive ? '3.5' : '1.5'}
+                      stroke={isRouteActive ? (rerouteResult ? '#10b981' : '#D97706') : '#cbd5e1'}
+                      strokeWidth={isRouteActive ? '4' : '1.5'}
                       strokeDasharray={isRouteActive ? 'none' : '4 4'}
                       markerEnd={isRouteActive ? 'url(#arrow-active)' : 'url(#arrow-default)'}
                       className="transition-all duration-300"
@@ -327,19 +333,22 @@ export const LiveMapPage: React.FC = () => {
                   const isCurrent = currentLoc === node.name;
                   const isOrigin = activeSelected?.origin === node.name;
                   const isDest = activeSelected?.destination === node.name;
+                  const isInActiveRoute = activePath.includes(node.name);
                   const isCongested = node.name === 'Hyderabad';
 
                   return (
                     <g key={node.id} transform={`translate(${node.x}, ${node.y})`} className="cursor-pointer">
                       {isCurrent && (
-                        <circle r="20" fill="none" stroke="#FFB500" strokeWidth="3" className="animate-ping opacity-75" />
+                        <circle r="20" fill="none" stroke={rerouteResult ? '#10b981' : '#FFB500'} strokeWidth="3" className="animate-ping opacity-75" />
                       )}
 
                       <circle
-                        r={isCurrent ? '11' : '7'}
+                        r={isCurrent ? '11' : isInActiveRoute ? '9' : '7'}
                         fill={
                           isCurrent
-                            ? '#FFB500'
+                            ? (rerouteResult ? '#10b981' : '#FFB500')
+                            : isInActiveRoute
+                            ? (rerouteResult ? '#059669' : '#0284c7')
                             : isCongested
                             ? '#e11d48'
                             : '#10b981'
@@ -355,8 +364,8 @@ export const LiveMapPage: React.FC = () => {
                         height="22"
                         rx="6"
                         fill="#ffffff"
-                        stroke={isCurrent ? '#D97706' : isCongested ? '#f43f5e' : '#cbd5e1'}
-                        strokeWidth={isCurrent ? '2' : '1.5'}
+                        stroke={isCurrent ? (rerouteResult ? '#10b981' : '#D97706') : isInActiveRoute ? '#0284c7' : '#cbd5e1'}
+                        strokeWidth={isInActiveRoute ? '2' : '1.5'}
                         className="shadow-xs"
                       />
                       <text
@@ -372,7 +381,7 @@ export const LiveMapPage: React.FC = () => {
                       </text>
 
                       {isCurrent && (
-                        <text x="0" y="-14" textAnchor="middle" fill="#D97706" fontSize="10" fontWeight="900">
+                        <text x="0" y="-14" textAnchor="middle" fill={rerouteResult ? '#059669' : '#D97706'} fontSize="10" fontWeight="900">
                           📍 PACKAGE HERE
                         </text>
                       )}
@@ -393,21 +402,37 @@ export const LiveMapPage: React.FC = () => {
             </div>
           )}
 
-          {/* VIEW MODE 2: REAL OPENSTREETMAP LIVE GIS TILES */}
+          {/* VIEW MODE 2: OPENSTREETMAP GIS VIEW WITH INTERACTIVE ROUTE OVERLAY */}
           {viewMode === 'OPENSTREETMAP' && (
             <div className="w-full bg-slate-100 rounded-2xl border border-slate-200 p-4 min-h-[380px] flex flex-col justify-between relative overflow-hidden">
-              <iframe
-                title="OpenStreetMap Live GIS India Corridor View"
-                width="100%"
-                height="340"
-                frameBorder="0"
-                scrolling="no"
-                src="https://www.openstreetmap.org/export/embed.html?bbox=68.0%2C8.0%2C90.0%2C32.0&amp;layer=mapnik"
-                className="rounded-xl border border-slate-300 shadow-inner"
-              ></iframe>
-              <div className="p-2 bg-white rounded-lg border border-slate-200 text-[11px] text-slate-600 font-bold flex justify-between items-center mt-2">
-                <span>📍 Live OpenStreetMap GIS Stream (India Trade Corridor)</span>
-                <span className="text-emerald-700 font-extrabold">● Real Open Source GIS Tiles Active</span>
+              <div className="relative w-full h-[340px] rounded-xl overflow-hidden border border-slate-300 shadow-inner">
+                <iframe
+                  title="OpenStreetMap Live GIS View"
+                  width="100%"
+                  height="100%"
+                  frameBorder="0"
+                  scrolling="no"
+                  src="https://www.openstreetmap.org/export/embed.html?bbox=68.0%2C8.0%2C90.0%2C32.0&amp;layer=mapnik"
+                ></iframe>
+
+                {/* Interactive Dynamic Route Polyline Overlay Banner on OpenStreetMap */}
+                <div className="absolute bottom-3 left-3 right-3 p-3 bg-white/95 backdrop-blur-md rounded-xl border border-slate-200 shadow-lg text-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-3 h-3 rounded-full ${rerouteResult ? 'bg-emerald-500 animate-pulse' : 'bg-blue-600'}`}></span>
+                    <span className="font-extrabold text-[#351C15]">
+                      {rerouteResult ? '⚡ REROUTED PATH HIGHLIGHTED ON GIS MAP:' : '🔵 ACTIVE ROUTE HIGHLIGHTED ON GIS MAP:'}
+                    </span>
+                    <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                      {activePath.join(' → ')}
+                    </span>
+                  </div>
+
+                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                    rerouteResult ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-blue-100 text-blue-800 border border-blue-300'
+                  }`}>
+                    {rerouteResult ? `+${rerouteResult.timeSaved}m Saved` : 'Live GIS Stream'}
+                  </span>
+                </div>
               </div>
             </div>
           )}
