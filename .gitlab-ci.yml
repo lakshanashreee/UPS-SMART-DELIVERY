@@ -79,6 +79,8 @@ deploy-backend:
     - build-backend
   script:
     - Write-Host "Deploying Backend Lambdas & Infrastructure via Terraform..."
+    - if (Test-Path "C:/Users/Lakshana/.aws/credentials") { $env:AWS_SHARED_CREDENTIALS_FILE="C:/Users/Lakshana/.aws/credentials"; $env:AWS_CONFIG_FILE="C:/Users/Lakshana/.aws/config" }
+    - $env:AWS_DEFAULT_REGION="us-east-1"
     - cd infrastructure
     - terraform init
     - terraform apply -auto-approve
@@ -95,6 +97,8 @@ deploy-frontend:
     - build-frontend
   script:
     - Write-Host "Deploying Frontend Assets to AWS S3 Website Bucket..."
+    - if (Test-Path "C:/Users/Lakshana/.aws/credentials") { $env:AWS_SHARED_CREDENTIALS_FILE="C:/Users/Lakshana/.aws/credentials"; $env:AWS_CONFIG_FILE="C:/Users/Lakshana/.aws/config" }
+    - $env:AWS_DEFAULT_REGION="us-east-1"
     - if (-not (Test-Path "frontend/dist")) { cd frontend; cmd /c "npm install"; cmd /c "npm run build"; cd .. }
     - aws s3 sync frontend/dist s3://logistics-control-tower-dev-frontend-597289949963 --delete
   rules:
